@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npx react-scripts:*)",
+      "Bash(npx --yes react-app-rewired check-es5-webpack-config:*)"
+    ]
+  }
+}
