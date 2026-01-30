@@ -15,7 +15,9 @@ const {
   getParticipants,
   getScores,
   resetExercise,
-  resetInject
+  resetInject,
+  updateSummary,
+  getSummary
 } = require('../controllers/exerciseController');
 const { protect, facilitatorOnly } = require('../middlewares/auth');
 
@@ -61,5 +63,9 @@ router.route('/:id/reset')
 
 router.route('/:id/reset-inject')
   .post(resetInject);
+
+router.route('/:id/summary')
+  .get(getSummary)
+  .put(updateSummary);
 
 module.exports = router;

@@ -5,7 +5,9 @@ const {
   getExerciseData,
   submitResponse,
   nextPhase,
-  updateParticipantStatus
+  updateParticipantStatus,
+  deleteParticipant,
+  deleteAllParticipants
 } = require('../controllers/participantController');
 const { protect, facilitatorOnly } = require('../middlewares/auth');
 
@@ -17,5 +19,7 @@ router.post('/next-phase', nextPhase);
 
 // Protected routes (facilitator only)
 router.put('/:participantId/status', protect, facilitatorOnly, updateParticipantStatus);
+router.delete('/all/:exerciseId', protect, facilitatorOnly, deleteAllParticipants);
+router.delete('/:participantId', protect, facilitatorOnly, deleteParticipant);
 
 module.exports = router;

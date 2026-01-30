@@ -23,9 +23,11 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await authAPI.getMe();
+      localStorage.setItem('user', JSON.stringify(response.data));
       setUser(response.data);
     } catch (error) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     } finally {
       setLoading(false);
     }
@@ -35,6 +37,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       setUser(response.data.user);
       setError('');
       return { success: true };
@@ -48,6 +51,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(credentials);
       localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
       setUser(response.data.user);
       setError('');
       return { success: true };
@@ -59,6 +63,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 

@@ -32,6 +32,10 @@ const ControlPanel = () => {
   const [selectedPresentationInject, setSelectedPresentationInject] = useState(null);
   const [expandedArtifacts, setExpandedArtifacts] = useState(new Set());
   const [selectedPhase, setSelectedPhase] = useState(1);
+  const [selectedParticipants, setSelectedParticipants] = useState(new Set());
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [summaryData, setSummaryData] = useState([]);
+  const [selectedSummaryPhase, setSelectedSummaryPhase] = useState(0);
 
   useEffect(() => {
     if (exerciseId) {
@@ -211,19 +215,67 @@ const ControlPanel = () => {
     }
   };
 
-  const handleRemoveParticipant = async (participantId) => {
-    if (window.confirm('Are you sure you want to remove this participant?')) {
-      try {
-        const response = await participantAPI.updateParticipantStatus(participantId, 'left');
-        
-        if (response.data.success) {
-          toast.success('Participant removed successfully!');
-          await fetchParticipants(exerciseId);
-        }
-      } catch (error) {
-        console.error('Failed to remove participant:', error);
-        toast.error(error.response?.data?.message || 'Failed to remove participant');
+
+  const handleDeleteParticipant = async (participantId) => {
+    try {
+      await participantAPI.deleteParticipant(participantId);
+      toast.success('Participant deleted permanently');
+      setSelectedParticipants(prev => {
+        const next = new Set(prev);
+        next.delete(participantId);
+        return next;
+      });
+      await fetchParticipants(exerciseId);
+    } catch (error) {
+      console.error('Failed to delete participant:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete participant');
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      for (const participantId of selectedParticipants) {
+        await participantAPI.deleteParticipant(participantId);
       }
+      toast.success(`Deleted ${selectedParticipants.size} participant(s)`);
+      setSelectedParticipants(new Set());
+      await fetchParticipants(exerciseId);
+    } catch (error) {
+      console.error('Failed to delete selected:', error);
+      toast.error('Failed to delete some participants');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      await participantAPI.deleteAllParticipants(exerciseId);
+      toast.success('All participants deleted');
+      setSelectedParticipants(new Set());
+      setShowDeleteAllModal(false);
+      await fetchParticipants(exerciseId);
+    } catch (error) {
+      console.error('Failed to delete all:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete all participants');
+    }
+  };
+
+  const toggleSelectParticipant = (participantId) => {
+    setSelectedParticipants(prev => {
+      const next = new Set(prev);
+      if (next.has(participantId)) {
+        next.delete(participantId);
+      } else {
+        next.add(participantId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedParticipants.size === participants.length) {
+      setSelectedParticipants(new Set());
+    } else {
+      setSelectedParticipants(new Set(participants.map(p => p.participantId)));
     }
   };
 
@@ -256,6 +308,17 @@ const ControlPanel = () => {
       }
       return newSet;
     });
+  };
+
+  const handleViewSummary = async () => {
+    try {
+      const response = await exerciseAPI.getSummary(exerciseId);
+      setSummaryData(response.data.summary || []);
+      setSelectedSummaryPhase(0);
+    } catch (error) {
+      console.error('Failed to load summary:', error);
+      toast.error('Failed to load summary');
+    }
   };
 
   const getArtifactIcon = (type) => {
@@ -348,6 +411,13 @@ const ControlPanel = () => {
         {/* Tabs */}
         <div className="border-b border-gray-700">
           <nav className="flex">
+            <button
+              className={`px-6 py-3 font-medium transition-all ${activeTab === 'summary' ? 'border-b-2 border-purple-500 text-purple-400 bg-purple-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+              onClick={() => { setActiveTab('summary'); handleViewSummary(); }}
+            >
+              <FaFileAlt className="inline mr-2" />
+              View Summary
+            </button>
             <button
               className={`px-6 py-3 font-medium transition-all ${activeTab === 'control' ? 'border-b-2 border-blue-500 text-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => setActiveTab('control')}
@@ -569,12 +639,30 @@ const ControlPanel = () => {
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-white">Participants Management</h3>
-                <button
-                  onClick={() => fetchParticipants(exerciseId)}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
-                >
-                  Refresh
-                </button>
+                <div className="flex items-center space-x-2">
+                  {selectedParticipants.size > 0 && (
+                    <button
+                      onClick={handleDeleteSelected}
+                      className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-lg text-sm hover:from-red-600 hover:to-red-700 flex items-center transition-all shadow-lg"
+                    >
+                      <FaTrash className="mr-1" />
+                      Delete Selected ({selectedParticipants.size})
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowDeleteAllModal(true)}
+                    className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
+                  >
+                    <FaTrash className="mr-1" />
+                    Delete All
+                  </button>
+                  <button
+                    onClick={() => fetchParticipants(exerciseId)}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
 
               {participants.length > 0 ? (
@@ -582,39 +670,55 @@ const ControlPanel = () => {
                   <table className="min-w-full divide-y divide-gray-700">
                     <thead className="bg-black/30">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={participants.length > 0 && selectedParticipants.size === participants.length}
+                            onChange={toggleSelectAll}
+                            className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
                           Name
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
                           Team
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
-                          Current Inject
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                          Inject
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
                           Score
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
-                          Joined At
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                          Joined
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
                           Actions
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-gray-800/30 divide-y divide-gray-700">
                       {participants.map((participant) => (
-                        <tr key={participant.participantId} className="hover:bg-gray-700/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-white">
+                        <tr key={participant.participantId} className={`transition-colors ${selectedParticipants.has(participant.participantId) ? 'bg-blue-500/10' : 'hover:bg-gray-700/50'}`}>
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedParticipants.has(participant.participantId)}
+                              onChange={() => toggleSelectParticipant(participant.participantId)}
+                              className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700"
+                            />
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-white">
                             {participant.name}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                          <td className="px-4 py-3 whitespace-nowrap text-gray-300">
                             {participant.team}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`px-2 py-1 rounded text-xs font-semibold ${
                               participant.status === 'active'
                                 ? 'bg-green-500/20 text-green-400 border border-green-500/30'
@@ -625,31 +729,31 @@ const ControlPanel = () => {
                               {participant.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                          <td className="px-4 py-3 whitespace-nowrap text-gray-300">
                             {participant.currentInject || '-'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap font-bold text-blue-400">
+                          <td className="px-4 py-3 whitespace-nowrap font-bold text-blue-400">
                             {participant.totalScore || 0}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
                             {new Date(participant.joinedAt).toLocaleTimeString()}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap space-x-2">
+                          <td className="px-4 py-3 whitespace-nowrap space-x-2">
                             {participant.status === 'waiting' && (
                               <button
                                 onClick={() => handleAdmitParticipant(participant.participantId)}
-                                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1 rounded-lg text-sm hover:from-green-600 hover:to-emerald-700 flex items-center inline-flex transition-all shadow-lg"
+                                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 py-1 rounded-lg text-xs hover:from-green-600 hover:to-emerald-700 flex items-center inline-flex transition-all shadow-lg"
                               >
                                 <FaUserCheck className="mr-1" />
                                 Admit
                               </button>
                             )}
                             <button
-                              onClick={() => handleRemoveParticipant(participant.participantId)}
-                              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-lg text-sm hover:from-red-600 hover:to-red-700 flex items-center inline-flex transition-all shadow-lg"
+                              onClick={() => handleDeleteParticipant(participant.participantId)}
+                              className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-2 py-1 rounded-lg text-xs flex items-center inline-flex transition-all"
                             >
                               <FaTrash className="mr-1" />
-                              Remove
+                              Delete
                             </button>
                           </td>
                         </tr>
@@ -1093,6 +1197,91 @@ const ControlPanel = () => {
               )}
             </div>
           )}
+
+          {activeTab === 'summary' && (
+            <div>
+              <h3 className="text-xl font-bold mb-4 text-white">Exercise Summary</h3>
+              <p className="text-gray-400 mb-6">
+                View the exercise drill presentation phases and content.
+              </p>
+
+              {summaryData.length === 0 ? (
+                <div className="flex items-center justify-center p-12 text-gray-400 bg-black/30 border border-gray-700 rounded-lg">
+                  <div className="text-center">
+                    <FaFileAlt className="text-5xl mx-auto mb-4 text-gray-600" />
+                    <p className="text-lg">No summary phases have been added yet.</p>
+                    <p className="text-sm mt-2">Go to Dashboard → Summary to add presentation phases.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex bg-black/30 border border-gray-700 rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
+                  {/* Phase Navigation Sidebar */}
+                  <div className="w-64 bg-black/30 border-r border-gray-700 p-4 overflow-y-auto">
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Phases</h4>
+                    <div className="space-y-2">
+                      {summaryData.map((phase, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedSummaryPhase(index)}
+                          className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                            selectedSummaryPhase === index
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                              : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 border border-transparent'
+                          }`}
+                        >
+                          <div className="text-xs text-gray-500 mb-1">Phase {phase.phaseNumber}</div>
+                          <div className="font-medium text-sm line-clamp-2">{phase.title}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Phase Content */}
+                  <div className="flex-1 p-8 overflow-y-auto">
+                    {summaryData[selectedSummaryPhase] && (
+                      <div>
+                        <div className="mb-6">
+                          <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded text-sm font-semibold border border-purple-500/30">
+                            Phase {summaryData[selectedSummaryPhase].phaseNumber}
+                          </span>
+                        </div>
+                        <h2 className="text-3xl font-bold text-white mb-6">
+                          {summaryData[selectedSummaryPhase].title}
+                        </h2>
+                        <div
+                          className="summary-content"
+                          dangerouslySetInnerHTML={{ __html: summaryData[selectedSummaryPhase].description }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer Navigation */}
+              {summaryData.length > 0 && (
+                <div className="mt-4 flex justify-between items-center">
+                  <button
+                    onClick={() => setSelectedSummaryPhase(prev => Math.max(0, prev - 1))}
+                    disabled={selectedSummaryPhase === 0}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Previous Phase
+                  </button>
+                  <span className="text-gray-400">
+                    Phase {selectedSummaryPhase + 1} of {summaryData.length}
+                  </span>
+                  <button
+                    onClick={() => setSelectedSummaryPhase(prev => Math.min(summaryData.length - 1, prev + 1))}
+                    disabled={selectedSummaryPhase === summaryData.length - 1}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next Phase →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1158,6 +1347,40 @@ const ControlPanel = () => {
                 className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-semibold"
               >
                 Reset Inject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Participants Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="bg-red-500/20 p-3 rounded-full">
+                <FaExclamationTriangle className="text-red-400 text-xl" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Delete All Participants</h3>
+                <p className="text-gray-400 text-sm">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-300 text-sm mb-6">
+              This will permanently delete all {participants.length} participant(s) and their responses from this exercise.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteAllModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAll}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+              >
+                Delete All
               </button>
             </div>
           </div>

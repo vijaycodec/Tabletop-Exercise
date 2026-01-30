@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import socketService from '../../services/socket';
 import { participantAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -12,6 +12,7 @@ import { EffectivenessBadge } from '../../utils/effectivenessBadge';
 
 const ParticipantDashboard = () => {
   const { exerciseId } = useParams();
+  const navigate = useNavigate();
   const [exerciseData, setExerciseData] = useState(null);
   const [participantData, setParticipantData] = useState(null);
   const [currentInject, setCurrentInject] = useState(null);
@@ -53,6 +54,7 @@ const ParticipantDashboard = () => {
       socketService.on('phaseProgressionToggled', handlePhaseProgressionToggled);
       socketService.on('scoreUpdate', handleScoreUpdate);
       socketService.on('participantAdmitted', handleParticipantAdmitted);
+      socketService.on('participantTerminated', handleParticipantTerminated);
       console.log('✅ Socket listeners configured');
 
       // Join rooms (will join when socket connects)
@@ -74,6 +76,7 @@ const ParticipantDashboard = () => {
         socketService.off('phaseProgressionToggled');
         socketService.off('scoreUpdate');
         socketService.off('participantAdmitted');
+        socketService.off('participantTerminated');
         socketService.disconnect();
       };
     }
@@ -263,6 +266,16 @@ const ParticipantDashboard = () => {
     }
   };
 
+  const handleParticipantTerminated = (data) => {
+    console.log('❌ Socket event received - Participant terminated:', data);
+    localStorage.removeItem('participantId');
+    toast.error(data.message || 'You have been removed from this exercise by the facilitator.', {
+      duration: 6000,
+      icon: '⚠️'
+    });
+    navigate('/join');
+  };
+
   const handleAnswerSelect = (phaseNumber, questionIndex, answer) => {
     console.log('Answer selected:', phaseNumber, questionIndex, answer);
     setResponses({
@@ -281,6 +294,12 @@ const ParticipantDashboard = () => {
     // Check if responses are open
     if (!currentInject?.responsesOpen) {
       alert('Responses are currently closed by the facilitator');
+      return;
+    }
+
+    // Check if phase progression is locked (discussion period)
+    if (phaseProgressionLocked) {
+      alert('Submissions are locked during the discussion period. Please wait for the facilitator to unlock.');
       return;
     }
 
@@ -390,7 +409,7 @@ const ParticipantDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 participant-dashboard">
       {/* Header */}
       <div className="bg-black/40 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
@@ -714,6 +733,7 @@ const ParticipantDashboard = () => {
                             const wasSelected = hasAnswered && participantData?.responses?.find(
                               r => r.injectNumber === currentInject?.injectNumber && r.phaseNumber === phase.phaseNumber
                             )?.answer === option.id;
+                            const isDisabled = !currentInject?.responsesOpen || hasAnswered || phaseProgressionLocked;
 
                             return (
                               <label key={optIndex} className={`flex items-center justify-between p-3 bg-black/30 border rounded-lg transition-all duration-200 ${
@@ -726,7 +746,7 @@ const ParticipantDashboard = () => {
                                   : responses[`${phase.phaseNumber}_0`] === option.id
                                     ? 'border-blue-500 bg-blue-500/10 cursor-pointer'
                                     : 'border-gray-700 hover:border-blue-500/50 hover:bg-blue-500/5 cursor-pointer'
-                              } ${!currentInject?.responsesOpen && !hasAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              } ${isDisabled && !hasAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center flex-1">
                                   <input
                                     type="radio"
@@ -735,7 +755,7 @@ const ParticipantDashboard = () => {
                                     checked={responses[`${phase.phaseNumber}_0`] === option.id}
                                     onChange={(e) => handleAnswerSelect(phase.phaseNumber, 0, e.target.value)}
                                     className="w-4 h-4 text-blue-600 mr-3 flex-shrink-0"
-                                    disabled={!currentInject?.responsesOpen || hasAnswered}
+                                    disabled={isDisabled}
                                   />
                                   <div className="flex-1">
                                     <div className="text-white font-medium">{option.text}</div>
@@ -760,6 +780,7 @@ const ParticipantDashboard = () => {
                             );
                             const userAnswer = responseData?.answer;
                             const wasSelected = hasAnswered && Array.isArray(userAnswer) && userAnswer.includes(option.id);
+                            const isDisabled = !currentInject?.responsesOpen || hasAnswered || phaseProgressionLocked;
 
                             return (
                               <label key={optIndex} className={`flex items-center justify-between p-3 bg-black/30 border rounded-lg transition-all duration-200 ${
@@ -774,7 +795,7 @@ const ParticipantDashboard = () => {
                                   : (responses[`${phase.phaseNumber}_0`] || []).includes(option.id)
                                     ? 'border-blue-500 bg-blue-500/10 cursor-pointer'
                                     : 'border-gray-700 hover:border-blue-500/50 hover:bg-blue-500/5 cursor-pointer'
-                              } ${!currentInject?.responsesOpen && !hasAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              } ${isDisabled && !hasAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center flex-1">
                                   <input
                                     type="checkbox"
@@ -790,7 +811,7 @@ const ParticipantDashboard = () => {
                                       handleAnswerSelect(phase.phaseNumber, 0, newAnswers);
                                     }}
                                     className="w-4 h-4 text-blue-600 mr-3 flex-shrink-0 rounded"
-                                    disabled={!currentInject?.responsesOpen || hasAnswered}
+                                    disabled={isDisabled}
                                   />
                                   <div className="flex-1">
                                     <div className="text-white font-medium">{option.text}</div>
@@ -809,10 +830,12 @@ const ParticipantDashboard = () => {
                             <textarea
                               value={responses[`${phase.phaseNumber}_0`] || ''}
                               onChange={(e) => handleAnswerSelect(phase.phaseNumber, 0, e.target.value)}
-                              className="w-full p-4 bg-black/30 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                              className={`w-full p-4 bg-black/30 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                                (!currentInject?.responsesOpen || phaseProgressionLocked) ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
                               rows="5"
                               placeholder="Type your answer here..."
-                              disabled={!currentInject?.responsesOpen}
+                              disabled={!currentInject?.responsesOpen || phaseProgressionLocked}
                             />
                           )}
                         </div>
@@ -888,8 +911,8 @@ const ParticipantDashboard = () => {
                                 </button>
                               </div>
                             );
-                          } else if (currentInject?.responsesOpen && responses[`${phase.phaseNumber}_0`]) {
-                            // Show Submit button if not answered yet
+                          } else if (currentInject?.responsesOpen && responses[`${phase.phaseNumber}_0`] && !phaseProgressionLocked) {
+                            // Show Submit button if not answered yet and not locked
                             return (
                               <button
                                 onClick={() => submitResponse(phase.phaseNumber, 0)}
@@ -899,11 +922,24 @@ const ParticipantDashboard = () => {
                                 Submit Answer
                               </button>
                             );
+                          } else if (phaseProgressionLocked && !hasAnswered) {
+                            // Show locked message when phase is locked but not answered
+                            return (
+                              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 text-center">
+                                <FaLock className="inline mr-2 text-orange-400 text-lg" />
+                                <div className="text-orange-300 font-semibold mb-1">Discussion Period</div>
+                                <div className="text-orange-200 text-sm">
+                                  The facilitator has locked submissions for team discussion.
+                                  <br />
+                                  Please wait for the unlock to submit your answer.
+                                </div>
+                              </div>
+                            );
                           }
                           return null;
                         })()}
 
-                        {!currentInject?.responsesOpen && (
+                        {!currentInject?.responsesOpen && !phaseProgressionLocked && (
                           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
                             <FaLock className="inline mr-2 text-yellow-400" />
                             <span className="text-yellow-300 font-medium">Responses Closed</span>

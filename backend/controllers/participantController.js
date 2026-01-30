@@ -455,6 +455,84 @@ exports.updateParticipantStatus = async (req, res) => {
   }
 };
 
+// @desc    Delete participant permanently
+// @route   DELETE /api/participants/:participantId
+// @access  Private (Facilitator)
+exports.deleteParticipant = async (req, res) => {
+  try {
+    const { participantId } = req.params;
+
+    const participant = await Participant.findOne({ participantId });
+    if (!participant) {
+      return res.status(404).json({ message: 'Participant not found' });
+    }
+
+    const exercise = await Exercise.findById(participant.exercise);
+    if (!exercise) {
+      return res.status(404).json({ message: 'Exercise not found' });
+    }
+
+    if (exercise.facilitator.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Notify participant via socket before deleting
+    if (req.io) {
+      const participantRoom = `participant-${participantId}`;
+      req.io.to(participantRoom).emit('participantTerminated', {
+        message: 'You have been removed from this exercise by the facilitator.',
+        exerciseTitle: exercise.title
+      });
+      console.log(`📡 Socket event emitted: participantTerminated to room ${participantRoom}`);
+    }
+
+    await Participant.deleteOne({ participantId });
+
+    res.json({ success: true, message: 'Participant deleted permanently' });
+  } catch (error) {
+    console.error('Error deleting participant:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Delete all participants for an exercise
+// @route   DELETE /api/participants/all/:exerciseId
+// @access  Private (Facilitator)
+exports.deleteAllParticipants = async (req, res) => {
+  try {
+    const { exerciseId } = req.params;
+
+    const exercise = await Exercise.findById(exerciseId);
+    if (!exercise) {
+      return res.status(404).json({ message: 'Exercise not found' });
+    }
+
+    if (exercise.facilitator.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Notify all participants via socket before deleting
+    if (req.io) {
+      const participants = await Participant.find({ exercise: exerciseId });
+      participants.forEach(p => {
+        const participantRoom = `participant-${p.participantId}`;
+        req.io.to(participantRoom).emit('participantTerminated', {
+          message: 'You have been removed from this exercise by the facilitator.',
+          exerciseTitle: exercise.title
+        });
+      });
+      console.log(`📡 Socket event emitted: participantTerminated to ${participants.length} participants`);
+    }
+
+    const result = await Participant.deleteMany({ exercise: exerciseId });
+
+    res.json({ success: true, message: `Deleted ${result.deletedCount} participants` });
+  } catch (error) {
+    console.error('Error deleting all participants:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Helper function to calculate points and magnitude
 function calculatePointsAndMagnitude(question, answer) {
   if (question.questionType === 'single') {

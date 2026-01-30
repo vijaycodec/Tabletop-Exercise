@@ -17,7 +17,7 @@ connectDB();
 // Route files
 const authRoutes = require('./routes/authRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
-const participantRoutes = require('./routes/participantRoutes');
+const participantRouteons = require('./routes/participantRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -52,7 +52,7 @@ app.use(cors({
 // Mount routers
 app.use('/api/auth', authRoutes);
 app.use('/api/exercises', exerciseRoutes);
-app.use('/api/participants', participantRoutes);
+app.use('/api/participants', participantRouteons);
 
 // Error handler middleware
 app.use(errorHandler);

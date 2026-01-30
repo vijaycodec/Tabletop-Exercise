@@ -45,7 +45,9 @@ export const exerciseAPI = {
   getScores: (exerciseId) => api.get(`/exercises/${exerciseId}/scores`),
   deleteExercise: (id) => api.delete(`/exercises/${id}`),
   resetExercise: (id) => api.post(`/exercises/${id}/reset`),
-  resetInject: (exerciseId, data) => api.post(`/exercises/${exerciseId}/reset-inject`, data)
+  resetInject: (exerciseId, data) => api.post(`/exercises/${exerciseId}/reset-inject`, data),
+  getSummary: (exerciseId) => api.get(`/exercises/${exerciseId}/summary`),
+  updateSummary: (exerciseId, summary) => api.put(`/exercises/${exerciseId}/summary`, { summary })
 };
 
 // Participant API calls
@@ -56,7 +58,11 @@ export const participantAPI = {
   submitResponse: (data) => api.post('/participants/submit-response', data),
   nextPhase: (data) => api.post('/participants/next-phase', data),
   updateParticipantStatus: (participantId, status) =>
-    api.put(`/participants/${participantId}/status`, { status })
+    api.put(`/participants/${participantId}/status`, { status }),
+  deleteParticipant: (participantId) =>
+    api.delete(`/participants/${participantId}`),
+  deleteAllParticipants: (exerciseId) =>
+    api.delete(`/participants/all/${exerciseId}`)
 };
 
 // Auth API calls

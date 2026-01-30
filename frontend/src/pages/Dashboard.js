@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { exerciseAPI } from '../services/api';
-import { FaPlus, FaPlay, FaEdit, FaCopy, FaTrash, FaCheck } from 'react-icons/fa';
+import { FaPlus, FaPlay, FaEdit, FaCopy, FaTrash, FaCheck, FaFileAlt } from 'react-icons/fa';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import { format } from 'date-fns';
 
 const Dashboard = () => {
@@ -12,6 +14,9 @@ const Dashboard = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryExercise, setSummaryExercise] = useState(null);
+  const [summaryPhases, setSummaryPhases] = useState([]);
   const [newExercise, setNewExercise] = useState({
     title: '',
     description: '',
@@ -97,6 +102,91 @@ const Dashboard = () => {
     }
   };
 
+  const handleOpenSummary = async (exercise) => {
+    setSummaryExercise(exercise);
+    try {
+      const response = await exerciseAPI.getSummary(exercise._id);
+      setSummaryPhases(response.data.summary || []);
+    } catch (error) {
+      console.error('Failed to load summary:', error);
+      setSummaryPhases([]);
+    }
+    setShowSummaryModal(true);
+  };
+
+  const handleAddSummaryPhase = () => {
+    const newPhase = {
+      phaseNumber: summaryPhases.length + 1,
+      title: '',
+      description: ''
+    };
+    setSummaryPhases([...summaryPhases, newPhase]);
+  };
+
+  const handleUpdateSummaryPhase = (index, field, value) => {
+    const updated = [...summaryPhases];
+    updated[index][field] = value;
+    setSummaryPhases(updated);
+  };
+
+  const handleDeleteSummaryPhase = (index) => {
+    const updated = summaryPhases.filter((_, i) => i !== index);
+    // Renumber phases
+    updated.forEach((phase, i) => {
+      phase.phaseNumber = i + 1;
+    });
+    setSummaryPhases(updated);
+  };
+
+  const handleSaveSummary = async () => {
+    try {
+      await exerciseAPI.updateSummary(summaryExercise._id, summaryPhases);
+      showNotification('Summary saved successfully!', 'success');
+      setShowSummaryModal(false);
+      setSummaryExercise(null);
+    } catch (error) {
+      console.error('Failed to save summary:', error);
+      showNotification('Failed to save summary. Please try again.', 'error');
+    }
+  };
+
+  // CKEditor configuration - Classic build includes these features
+  const editorConfig = {
+    toolbar: [
+      'heading',
+      '|',
+      'bold',
+      'italic',
+      'link',
+      '|',
+      'bulletedList',
+      'numberedList',
+      '|',
+      'outdent',
+      'indent',
+      '|',
+      'insertTable',
+      '|',
+      'blockQuote',
+      '|',
+      'undo',
+      'redo'
+    ],
+    table: {
+      contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+    },
+    link: {
+      addTargetToExternalLinks: true
+    },
+    // Better paste handling - preserves formatting from Word/Google Docs
+    // Note: PDF copy always produces plain text (OS limitation)
+    htmlSupport: {
+      allow: [
+        { name: /.*/, attributes: true, classes: true, styles: true }
+      ]
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
@@ -179,6 +269,14 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleOpenSummary(exercise)}
+                      className="flex items-center bg-purple-500/20 text-purple-400 px-3 py-2 rounded hover:bg-purple-500/30 border border-purple-500/30 transition-colors"
+                      title="Exercise Summary"
+                    >
+                      <FaFileAlt className="mr-1" />
+                      Summary
+                    </button>
                     {exercise.status === 'draft' && (
                       <button
                         onClick={() => handleActivateExercise(exercise._id)}
@@ -338,6 +436,100 @@ const Dashboard = () => {
                   className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded hover:from-red-700 hover:to-red-800 transition-all shadow-lg"
                 >
                   Delete Exercise
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Modal */}
+      {showSummaryModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl w-full max-w-4xl border border-gray-700 my-8">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Exercise Summary / Drill Presentation</h3>
+                  <p className="text-gray-400 text-sm">{summaryExercise?.title}</p>
+                </div>
+                <button
+                  onClick={handleAddSummaryPhase}
+                  className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 flex items-center transition-all shadow-lg"
+                >
+                  <FaPlus className="mr-2" />
+                  Add Phase
+                </button>
+              </div>
+
+              <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+                {summaryPhases.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <FaFileAlt className="text-4xl mx-auto mb-3 text-gray-600" />
+                    <p>No summary phases added yet.</p>
+                    <p className="text-sm mt-1">Click "Add Phase" to create your first summary phase.</p>
+                  </div>
+                ) : (
+                  summaryPhases.map((phase, index) => (
+                    <div key={index} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded text-sm font-semibold border border-purple-500/30">
+                          Phase {phase.phaseNumber}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteSummaryPhase(index)}
+                          className="text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                          Phase Title *
+                        </label>
+                        <input
+                          type="text"
+                          value={phase.title}
+                          onChange={(e) => handleUpdateSummaryPhase(index, 'title', e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          placeholder="e.g., LONG-TERM RECONNAISSANCE (Pre-attack months)"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                          Description *
+                        </label>
+                        <div className="bg-white rounded-md ckeditor-container">
+                          <CKEditor
+                            editor={ClassicEditor}
+                            config={editorConfig}
+                            data={phase.description || ''}
+                            onChange={(event, editor) => {
+                              const data = editor.getData();
+                              handleUpdateSummaryPhase(index, 'description', data);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-700">
+                <button
+                  onClick={() => { setShowSummaryModal(false); setSummaryExercise(null); }}
+                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSummary}
+                  className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-2 rounded hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg"
+                >
+                  Save Summary
                 </button>
               </div>
             </div>

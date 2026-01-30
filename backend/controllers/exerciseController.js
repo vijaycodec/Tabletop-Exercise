@@ -706,3 +706,56 @@ exports.resetInject = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// @desc    Update exercise summary phases
+// @route   PUT /api/exercises/:id/summary
+// @access  Private (Facilitator)
+exports.updateSummary = async (req, res) => {
+  try {
+    const { summary } = req.body;
+    const exerciseId = req.params.id;
+
+    const exercise = await Exercise.findById(exerciseId);
+
+    if (!exercise) {
+      return res.status(404).json({ message: 'Exercise not found' });
+    }
+
+    if (exercise.facilitator.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    exercise.summary = summary;
+    await exercise.save();
+
+    res.json({
+      success: true,
+      message: 'Summary updated successfully',
+      summary: exercise.summary
+    });
+  } catch (error) {
+    console.error('Error updating summary:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get exercise summary
+// @route   GET /api/exercises/:id/summary
+// @access  Private (Facilitator)
+exports.getSummary = async (req, res) => {
+  try {
+    const exercise = await Exercise.findById(req.params.id);
+
+    if (!exercise) {
+      return res.status(404).json({ message: 'Exercise not found' });
+    }
+
+    res.json({
+      success: true,
+      summary: exercise.summary || []
+    });
+  } catch (error) {
+    console.error('Error getting summary:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

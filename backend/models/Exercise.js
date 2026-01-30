@@ -92,6 +92,21 @@ const InjectSchema = new mongoose.Schema({
   order: Number
 });
 
+const SummaryPhaseSchema = new mongoose.Schema({
+  phaseNumber: {
+    type: Number,
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
+  }
+});
+
 const ExerciseSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -118,6 +133,7 @@ const ExerciseSchema = new mongoose.Schema({
     default: 'draft'
   },
   injects: [InjectSchema],
+  summary: [SummaryPhaseSchema],
   maxParticipants: {
     type: Number,
     default: 50

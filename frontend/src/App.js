@@ -45,7 +45,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout />}>
               {/* Public Routes */}
-              <Route index element={<JoinExercise />} />
+              <Route index element={<Navigate to="/join" />} />
+              <Route path="join" element={<JoinExercise />} />
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               
