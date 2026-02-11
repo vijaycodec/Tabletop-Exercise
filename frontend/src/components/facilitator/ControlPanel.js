@@ -9,7 +9,7 @@ import {
   FaLockOpen, FaCopy, FaArrowLeft, FaTrash, FaUserCheck, FaClipboardList,
   FaChevronDown, FaChevronRight, FaSearch, FaDesktop, FaFileAlt,
   FaExclamationTriangle, FaNetworkWired, FaServer, FaList, FaSync,
-  FaEye, FaEyeSlash, FaCheck
+  FaEye, FaEyeSlash, FaCheck, FaClock
 } from 'react-icons/fa';
 import ParticipantNotification from './ParticipantNotification';
 import { EffectivenessBadge } from '../../utils/effectivenessBadge';
@@ -1027,15 +1027,44 @@ const ControlPanel = () => {
                                     <FaChevronRight className="text-sm text-gray-500" />
                                   )}
                                   {getArtifactIcon(artifact.type)}
-                                  <span className="font-medium text-white">{artifact.title}</span>
-                                  <span className="text-xs text-gray-500 uppercase ml-auto">{artifact.type}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-white">{artifact.name || artifact.title}</span>
+                                    <div className="flex items-center gap-3 mt-0.5">
+                                      <span className="text-xs text-gray-500 uppercase">{artifact.type}</span>
+                                      {artifact.metadata?.eventId && <span className="text-xs text-gray-500">Event: {artifact.metadata.eventId}</span>}
+                                      {artifact.metadata?.alertId && <span className="text-xs text-gray-500">Alert: {artifact.metadata.alertId}</span>}
+                                    </div>
+                                  </div>
+                                  {artifact.metadata?.severity && (
+                                    <span className="px-2 py-1 rounded text-xs font-medium bg-gray-800 text-gray-300 border border-gray-600 ml-auto flex-shrink-0">
+                                      {artifact.metadata.severity}
+                                    </span>
+                                  )}
                                 </div>
 
                                 {isExpanded && (
                                   <div className="border-t border-gray-700 p-4 bg-gray-900/40">
                                     <pre className="text-gray-300 text-sm whitespace-pre-wrap font-mono bg-black/30 p-4 rounded border border-gray-700 overflow-x-auto">
-                                      {artifact.content}
+{artifact.content}
                                     </pre>
+                                    {artifact.metadata && (artifact.metadata.timestamp || artifact.metadata.source) && (
+                                      <div className="mt-3 pt-3 border-t border-gray-700 flex gap-6 text-xs">
+                                        {artifact.metadata.timestamp && (
+                                          <div className="flex items-center gap-1.5">
+                                            <FaClock className="text-gray-500" />
+                                            <span className="text-gray-500">Timestamp:</span>
+                                            <span className="text-gray-400 font-mono">{artifact.metadata.timestamp}</span>
+                                          </div>
+                                        )}
+                                        {artifact.metadata.source && (
+                                          <div className="flex items-center gap-1.5">
+                                            <FaServer className="text-gray-500" />
+                                            <span className="text-gray-500">Source:</span>
+                                            <span className="text-gray-400 font-mono">{artifact.metadata.source}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
