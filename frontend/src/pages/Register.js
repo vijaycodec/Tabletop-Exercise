@@ -43,7 +43,7 @@ const Register = () => {
     <div className="max-w-md mx-auto">
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-8 border border-gray-700">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-blue-600/20 border border-blue-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <FaUserPlus className="text-3xl text-white" />
           </div>
           <h2 className="text-2xl font-bold text-white">Create Facilitator Account</h2>
@@ -51,11 +51,11 @@ const Register = () => {
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-start gap-3">
-            <FaExclamationCircle className="text-red-400 mt-0.5 flex-shrink-0" />
+          <div className="mb-6 bg-gray-700/50 border border-gray-600 rounded-lg p-4 flex items-start gap-3">
+            <FaExclamationCircle className="text-gray-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-red-300 font-medium">Registration Failed</p>
-              <p className="text-red-200 text-sm mt-1">{error}</p>
+              <p className="text-gray-200 font-medium">Registration Failed</p>
+              <p className="text-gray-400 text-sm mt-1">{error}</p>
             </div>
           </div>
         )}
@@ -73,7 +73,7 @@ const Register = () => {
                 type="text"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                 required
               />
             </div>
@@ -91,7 +91,7 @@ const Register = () => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                 required
               />
             </div>
@@ -109,7 +109,7 @@ const Register = () => {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                 required
                 minLength="6"
               />
@@ -128,7 +128,7 @@ const Register = () => {
                 type="password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="pl-10 w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                 required
                 minLength="6"
               />
@@ -138,7 +138,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg hover:from-green-600 hover:to-emerald-700 flex items-center justify-center font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-blue-600/80 hover:bg-blue-500/80 text-white py-3 px-4 rounded-lg flex items-center justify-center font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
@@ -157,7 +157,7 @@ const Register = () => {
         <div className="mt-6 text-center">
           <p className="text-gray-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-green-400 hover:text-green-300 transition-colors">
+            <Link to="/facilitator/login" className="text-blue-400/80 hover:text-blue-300/80 transition-colors">
               Login here
             </Link>
           </p>

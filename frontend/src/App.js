@@ -26,7 +26,7 @@ const ProtectedRoute = ({ children, requireFacilitator = false }) => {
   const user = JSON.parse(localStorage.getItem('user'));
 
   if (!token) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/facilitator/login" />;
   }
 
   if (requireFacilitator && (!user || (user.role !== 'facilitator' && user.role !== 'admin'))) {
@@ -45,10 +45,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout />}>
               {/* Public Routes */}
-              <Route index element={<Navigate to="/join" />} />
-              <Route path="join" element={<JoinExercise />} />
-              <Route path="login" element={<Login />} />
-              <Route path="register" element={<Register />} />
+              <Route index element={<Navigate to="/participant/join" />} />
+              <Route path="participant/join" element={<JoinExercise />} />
+              <Route path="facilitator/login" element={<Login />} />
+              <Route path="facilitator/register" element={<Register />} />
               
               {/* Protected Facilitator Routes */}
               <Route path="dashboard" element={

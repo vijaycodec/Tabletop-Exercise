@@ -7,8 +7,9 @@ import toast from 'react-hot-toast';
 import {
   FaPlay, FaUsers, FaLock,
   FaLockOpen, FaCopy, FaArrowLeft, FaTrash, FaUserCheck, FaClipboardList,
-  FaChevronDown, FaChevronRight, FaSearch, FaDesktop, FaFileAlt, FaQuestionCircle,
-  FaBullseye, FaExclamationTriangle, FaNetworkWired, FaServer, FaList, FaSync
+  FaChevronDown, FaChevronRight, FaSearch, FaDesktop, FaFileAlt,
+  FaExclamationTriangle, FaNetworkWired, FaServer, FaList, FaSync,
+  FaEye, FaEyeSlash, FaCheck
 } from 'react-icons/fa';
 import ParticipantNotification from './ParticipantNotification';
 import { EffectivenessBadge } from '../../utils/effectivenessBadge';
@@ -36,6 +37,7 @@ const ControlPanel = () => {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
   const [selectedSummaryPhase, setSelectedSummaryPhase] = useState(0);
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(false);
 
   useEffect(() => {
     if (exerciseId) {
@@ -71,6 +73,20 @@ const ControlPanel = () => {
       fetchParticipants(exerciseId);
     });
 
+    // Listen for participant disconnections
+    socketService.on('participantDisconnected', (data) => {
+      console.log('⚠️ Socket event received - Participant disconnected:', data);
+      toast(`${data.name} has left the exercise`, { icon: '👋' });
+      fetchParticipants(exerciseId);
+    });
+
+    // Listen for participant reconnections
+    socketService.on('participantRejoined', (data) => {
+      console.log('🔄 Socket event received - Participant rejoined:', data);
+      toast.success(`${data.name} has rejoined the exercise`);
+      fetchParticipants(exerciseId);
+    });
+
     console.log('✅ All socket listeners set up successfully');
   };
 
@@ -79,6 +95,8 @@ const ControlPanel = () => {
     socketService.off('participantJoined');
     socketService.off('participantStatusUpdated');
     socketService.off('scoreUpdate');
+    socketService.off('participantDisconnected');
+    socketService.off('participantRejoined');
   };
 
   const loadExerciseData = async () => {
@@ -324,30 +342,15 @@ const ControlPanel = () => {
   const getArtifactIcon = (type) => {
     switch (type) {
       case 'log':
-        return <FaFileAlt className="text-blue-400" />;
+        return <FaFileAlt className="text-gray-400" />;
       case 'alert':
-        return <FaExclamationTriangle className="text-red-400" />;
+        return <FaExclamationTriangle className="text-gray-400" />;
       case 'network':
-        return <FaNetworkWired className="text-green-400" />;
+        return <FaNetworkWired className="text-gray-400" />;
       case 'server':
-        return <FaServer className="text-purple-400" />;
+        return <FaServer className="text-gray-400" />;
       default:
         return <FaList className="text-gray-400" />;
-    }
-  };
-
-  const getArtifactColor = (type) => {
-    switch (type) {
-      case 'log':
-        return 'border-blue-500/50 bg-blue-500/10';
-      case 'alert':
-        return 'border-red-500/50 bg-red-500/10';
-      case 'network':
-        return 'border-green-500/50 bg-green-500/10';
-      case 'server':
-        return 'border-purple-500/50 bg-purple-500/10';
-      default:
-        return 'border-gray-500/50 bg-gray-500/10';
     }
   };
 
@@ -375,7 +378,7 @@ const ControlPanel = () => {
             <p className="text-gray-400 mb-6">The exercise data could not be loaded.</p>
             <button
               onClick={() => navigate('/dashboard')}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center mx-auto transition-all shadow-lg"
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center mx-auto transition-all"
             >
               <FaArrowLeft className="mr-2" />
               Back to Dashboard
@@ -398,8 +401,8 @@ const ControlPanel = () => {
           <div className="text-right">
             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
               currentExercise.status === 'active'
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                ? 'bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-400/80 border border-amber-500/20'
             }`}>
               {currentExercise.status}
             </span>
@@ -412,35 +415,35 @@ const ControlPanel = () => {
         <div className="border-b border-gray-700">
           <nav className="flex">
             <button
-              className={`px-6 py-3 font-medium transition-all ${activeTab === 'summary' ? 'border-b-2 border-purple-500 text-purple-400 bg-purple-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`px-6 py-3 font-medium transition-all ${activeTab === 'summary' ? 'border-b-2 border-blue-400/80 text-white bg-gray-700/30' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => { setActiveTab('summary'); handleViewSummary(); }}
             >
               <FaFileAlt className="inline mr-2" />
               View Summary
             </button>
             <button
-              className={`px-6 py-3 font-medium transition-all ${activeTab === 'control' ? 'border-b-2 border-blue-500 text-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`px-6 py-3 font-medium transition-all ${activeTab === 'control' ? 'border-b-2 border-blue-400/80 text-white bg-gray-700/30' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => setActiveTab('control')}
             >
               <FaPlay className="inline mr-2" />
               Exercise Control
             </button>
             <button
-              className={`px-6 py-3 font-medium transition-all ${activeTab === 'participants' ? 'border-b-2 border-blue-500 text-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`px-6 py-3 font-medium transition-all ${activeTab === 'participants' ? 'border-b-2 border-blue-400/80 text-white bg-gray-700/30' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => setActiveTab('participants')}
             >
               <FaUsers className="inline mr-2" />
               Participants ({participants.length})
             </button>
             <button
-              className={`px-6 py-3 font-medium transition-all ${activeTab === 'responses' ? 'border-b-2 border-blue-500 text-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`px-6 py-3 font-medium transition-all ${activeTab === 'responses' ? 'border-b-2 border-blue-400/80 text-white bg-gray-700/30' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => setActiveTab('responses')}
             >
               <FaClipboardList className="inline mr-2" />
               Responses
             </button>
             <button
-              className={`px-6 py-3 font-medium transition-all ${activeTab === 'presentation' ? 'border-b-2 border-blue-500 text-blue-400 bg-blue-500/10' : 'text-gray-400 hover:text-gray-200'}`}
+              className={`px-6 py-3 font-medium transition-all ${activeTab === 'presentation' ? 'border-b-2 border-blue-400/80 text-white bg-gray-700/30' : 'text-gray-400 hover:text-gray-200'}`}
               onClick={() => setActiveTab('presentation')}
             >
               <FaDesktop className="inline mr-2" />
@@ -457,7 +460,7 @@ const ControlPanel = () => {
                 <h3 className="text-xl font-bold text-white">Exercise Control Panel</h3>
                 <button
                   onClick={() => setShowResetExerciseModal(true)}
-                  className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
                 >
                   <FaSync className="mr-1" />
                   Reset Exercise
@@ -472,7 +475,7 @@ const ControlPanel = () => {
                   {currentExercise?.injects?.length > 0 ? (
                     <div className="space-y-3">
                       {currentExercise.injects.map((inject) => (
-                        <div key={inject.injectNumber} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 hover:border-blue-500/50 transition-all">
+                        <div key={inject.injectNumber} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 hover:border-gray-600 transition-all">
                           <div className="flex justify-between items-center mb-2">
                             <div>
                               <h5 className="font-semibold text-white">{inject.title}</h5>
@@ -484,13 +487,13 @@ const ControlPanel = () => {
                               {!inject.isActive ? (
                                 <button
                                   onClick={() => handleReleaseInject(inject.injectNumber)}
-                                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1 rounded-lg text-sm hover:from-green-600 hover:to-emerald-700 flex items-center transition-all shadow-lg"
+                                  className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-3 py-1 rounded-lg text-sm flex items-center transition-all"
                                 >
                                   <FaPlay className="mr-1" />
                                   Release
                                 </button>
                               ) : (
-                                <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs flex items-center border border-green-500/30">
+                                <span className="bg-emerald-500/10 text-emerald-400/80 px-2 py-1 rounded text-xs flex items-center border border-emerald-500/20">
                                   <FaPlay className="mr-1" />
                                   Active
                                 </span>
@@ -507,8 +510,8 @@ const ControlPanel = () => {
                                 onClick={() => handleToggleResponses(inject.injectNumber, inject.responsesOpen)}
                                 className={`flex items-center text-sm px-2 py-1 rounded-lg transition-all ${
                                   inject.responsesOpen
-                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
-                                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+                                    ? 'bg-amber-500/10 text-amber-400/80 hover:bg-amber-500/20 border border-amber-500/20'
+                                    : 'bg-emerald-500/10 text-emerald-400/80 hover:bg-emerald-500/20 border border-emerald-500/20'
                                 }`}
                               >
                                 {inject.responsesOpen ? (
@@ -534,8 +537,8 @@ const ControlPanel = () => {
                                   onClick={() => handleTogglePhaseProgression(inject.injectNumber, inject.phaseProgressionLocked)}
                                   className={`flex items-center text-sm px-2 py-1 rounded-lg transition-all ${
                                     inject.phaseProgressionLocked
-                                      ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30'
-                                      : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30'
+                                      ? 'bg-emerald-500/10 text-emerald-400/80 hover:bg-emerald-500/20 border border-emerald-500/20'
+                                      : 'bg-amber-500/10 text-amber-400/80 hover:bg-amber-500/20 border border-amber-500/20'
                                   }`}
                                 >
                                   {inject.phaseProgressionLocked ? (
@@ -557,7 +560,7 @@ const ControlPanel = () => {
                               <div className="flex justify-end mt-2 pt-2 border-t border-gray-700">
                                 <button
                                   onClick={() => { setResetInjectNumber(inject.injectNumber); setShowResetInjectModal(true); }}
-                                  className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 border border-orange-500/30 px-2 py-1 rounded-lg text-sm flex items-center transition-all"
+                                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-2 py-1 rounded-lg text-sm flex items-center transition-all"
                                 >
                                   <FaSync className="mr-1" />
                                   Reset Inject
@@ -573,7 +576,7 @@ const ControlPanel = () => {
                       <p>No injects created yet.</p>
                       <button
                         onClick={() => navigate(`/exercise/${exerciseId}/build`)}
-                        className="mt-2 text-blue-400 hover:text-blue-300 transition-colors"
+                        className="mt-2 text-gray-400 hover:text-gray-300 transition-colors"
                       >
                         Go to Exercise Builder to add injects
                       </button>
@@ -591,35 +594,41 @@ const ControlPanel = () => {
                     </div>
                     <div className="flex justify-between text-gray-300">
                       <span>Active Injects:</span>
-                      <span className="font-bold text-green-400">
+                      <span className="font-bold text-white">
                         {currentExercise?.injects?.filter(i => i.isActive).length || 0}
                       </span>
                     </div>
                     <div className="flex justify-between text-gray-300">
                       <span>Active Participants:</span>
-                      <span className="font-bold text-blue-400">
+                      <span className="font-bold text-white">
                         {participants.filter(p => p.status === 'active').length}
                       </span>
                     </div>
                     <div className="flex justify-between text-gray-300">
                       <span>Waiting Participants:</span>
-                      <span className="font-bold text-yellow-400">
+                      <span className="font-bold text-white">
                         {participants.filter(p => p.status === 'waiting').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-gray-300">
+                      <span>Left:</span>
+                      <span className="font-bold text-white">
+                        {participants.filter(p => p.status === 'left').length}
                       </span>
                     </div>
                   </div>
 
                   {/* Access Code Display */}
                   {currentExercise?.accessCode && (
-                    <div className="mt-6 p-3 bg-blue-500/10 rounded-lg border border-blue-500/30">
-                      <h5 className="font-bold mb-1 text-blue-300">Access Code</h5>
+                    <div className="mt-6 p-3 bg-gray-800/60 rounded-lg border border-gray-600">
+                      <h5 className="font-bold mb-1 text-gray-300">Access Code</h5>
                       <div className="flex items-center">
                         <code className="bg-gray-700 px-3 py-2 rounded-md border border-gray-600 text-lg font-mono flex-grow text-white">
                           {currentExercise.accessCode}
                         </code>
                         <button
                           onClick={copyAccessCode}
-                          className="ml-2 text-blue-400 hover:text-blue-300 flex items-center transition-colors"
+                          className="ml-2 text-gray-400 hover:text-gray-300 flex items-center transition-colors"
                         >
                           <FaCopy className="mr-1" />
                           Copy
@@ -643,7 +652,7 @@ const ControlPanel = () => {
                   {selectedParticipants.size > 0 && (
                     <button
                       onClick={handleDeleteSelected}
-                      className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-lg text-sm hover:from-red-600 hover:to-red-700 flex items-center transition-all shadow-lg"
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
                     >
                       <FaTrash className="mr-1" />
                       Delete Selected ({selectedParticipants.size})
@@ -651,14 +660,14 @@ const ControlPanel = () => {
                   )}
                   <button
                     onClick={() => setShowDeleteAllModal(true)}
-                    className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
                   >
                     <FaTrash className="mr-1" />
                     Delete All
                   </button>
                   <button
                     onClick={() => fetchParticipants(exerciseId)}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-sm transition-all"
                   >
                     Refresh
                   </button>
@@ -675,7 +684,7 @@ const ControlPanel = () => {
                             type="checkbox"
                             checked={participants.length > 0 && selectedParticipants.size === participants.length}
                             onChange={toggleSelectAll}
-                            className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700"
+                            className="w-4 h-4 rounded border-gray-600 accent-gray-400 focus:ring-gray-500 bg-gray-700"
                           />
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">
@@ -703,13 +712,13 @@ const ControlPanel = () => {
                     </thead>
                     <tbody className="bg-gray-800/30 divide-y divide-gray-700">
                       {participants.map((participant) => (
-                        <tr key={participant.participantId} className={`transition-colors ${selectedParticipants.has(participant.participantId) ? 'bg-blue-500/10' : 'hover:bg-gray-700/50'}`}>
+                        <tr key={participant.participantId} className={`transition-colors ${selectedParticipants.has(participant.participantId) ? 'bg-gray-700/30' : 'hover:bg-gray-700/50'}`}>
                           <td className="px-4 py-3">
                             <input
                               type="checkbox"
                               checked={selectedParticipants.has(participant.participantId)}
                               onChange={() => toggleSelectParticipant(participant.participantId)}
-                              className="w-4 h-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700"
+                              className="w-4 h-4 rounded border-gray-600 accent-gray-400 focus:ring-gray-500 bg-gray-700"
                             />
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-white">
@@ -721,10 +730,14 @@ const ControlPanel = () => {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`px-2 py-1 rounded text-xs font-semibold ${
                               participant.status === 'active'
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                ? 'bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20'
                                 : participant.status === 'waiting'
-                                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                                ? 'bg-amber-500/10 text-amber-400/80 border border-amber-500/20'
+                                : participant.status === 'left'
+                                ? 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                                : participant.status === 'completed'
+                                ? 'bg-sky-500/10 text-sky-400/80 border border-sky-500/20'
+                                : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
                             }`}>
                               {participant.status}
                             </span>
@@ -732,7 +745,7 @@ const ControlPanel = () => {
                           <td className="px-4 py-3 whitespace-nowrap text-gray-300">
                             {participant.currentInject || '-'}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap font-bold text-blue-400">
+                          <td className="px-4 py-3 whitespace-nowrap font-bold text-white">
                             {participant.totalScore || 0}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">
@@ -742,7 +755,7 @@ const ControlPanel = () => {
                             {participant.status === 'waiting' && (
                               <button
                                 onClick={() => handleAdmitParticipant(participant.participantId)}
-                                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 py-1 rounded-lg text-xs hover:from-green-600 hover:to-emerald-700 flex items-center inline-flex transition-all shadow-lg"
+                                className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-2 py-1 rounded-lg text-xs flex items-center inline-flex transition-all"
                               >
                                 <FaUserCheck className="mr-1" />
                                 Admit
@@ -750,7 +763,7 @@ const ControlPanel = () => {
                             )}
                             <button
                               onClick={() => handleDeleteParticipant(participant.participantId)}
-                              className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 px-2 py-1 rounded-lg text-xs flex items-center inline-flex transition-all"
+                              className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-2 py-1 rounded-lg text-xs flex items-center inline-flex transition-all"
                             >
                               <FaTrash className="mr-1" />
                               Delete
@@ -777,7 +790,7 @@ const ControlPanel = () => {
                 <h3 className="text-xl font-bold text-white">Participant Responses</h3>
                 <button
                   onClick={() => fetchParticipants(exerciseId)}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-sm transition-all"
                 >
                   Refresh
                 </button>
@@ -795,7 +808,7 @@ const ControlPanel = () => {
                       placeholder="Search participants by name..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="w-full pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/30 focus:ring-1 focus:ring-blue-500/50 transition-colors"
                     />
                   </div>
 
@@ -817,7 +830,7 @@ const ControlPanel = () => {
                             >
                               <div className="flex items-center gap-3">
                                 {isExpanded ? (
-                                  <FaChevronDown className="text-blue-400" />
+                                  <FaChevronDown className="text-gray-300" />
                                 ) : (
                                   <FaChevronRight className="text-gray-400" />
                                 )}
@@ -831,11 +844,11 @@ const ControlPanel = () => {
                               <div className="flex items-center gap-4">
                                 <div className="text-right">
                                   <div className="text-xs text-gray-400">Responses</div>
-                                  <div className="text-lg font-bold text-blue-400">{participant.responses.length}</div>
+                                  <div className="text-lg font-bold text-white">{participant.responses.length}</div>
                                 </div>
                                 <div className="text-right">
                                   <div className="text-xs text-gray-400">Total Score</div>
-                                  <div className="text-lg font-bold text-green-400">{participant.totalScore || 0}</div>
+                                  <div className="text-lg font-bold text-white">{participant.totalScore || 0}</div>
                                 </div>
                               </div>
                             </div>
@@ -886,7 +899,7 @@ const ControlPanel = () => {
                                             )}
                                           </div>
                                           <div className="text-right ml-4">
-                                            <div className="text-lg font-bold text-blue-400">
+                                            <div className="text-lg font-bold text-white">
                                               {response.pointsEarned || 0} pts
                                             </div>
                                           </div>
@@ -925,29 +938,26 @@ const ControlPanel = () => {
 
           {activeTab === 'presentation' && (
             <div>
-              <h3 className="text-xl font-bold mb-4 text-white">Presentation Mode</h3>
-              <p className="text-gray-400 mb-6">
-                Use this view to present the exercise content to participants during discussions and reviews.
-              </p>
-
-              {/* Inject Selector */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Select Inject to Present
-                </label>
+              {/* Header Row */}
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Presentation Mode</h3>
+                  <p className="text-gray-500 text-sm mt-1">Present exercise content to participants during discussions.</p>
+                </div>
                 <select
                   value={selectedPresentationInject || ''}
                   onChange={(e) => {
                     setSelectedPresentationInject(e.target.value ? parseInt(e.target.value) : null);
                     setExpandedArtifacts(new Set());
                     setSelectedPhase(1);
+                    setShowCorrectAnswers(false);
                   }}
-                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500 transition-colors text-lg"
+                  className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500/30 focus:ring-1 focus:ring-blue-500/50 transition-colors"
                 >
-                  <option value="">-- Select an Inject --</option>
+                  <option value="">Select Inject</option>
                   {currentExercise?.injects?.filter(inject => inject.isActive).map((inject) => (
                     <option key={inject.injectNumber} value={inject.injectNumber}>
-                      Inject #{inject.injectNumber} - {inject.title}
+                      Inject #{inject.injectNumber} — {inject.title}
                     </option>
                   ))}
                 </select>
@@ -959,26 +969,33 @@ const ControlPanel = () => {
 
                 if (!inject) {
                   return (
-                    <div className="text-center py-8 text-gray-400">
+                    <div className="text-center py-8 text-gray-500">
                       <p>Selected inject not found.</p>
                     </div>
                   );
                 }
 
+                // Count responses for this inject
+                const respondedCount = participants.filter(p =>
+                  p.status === 'active' && p.responses?.some(r => r.injectNumber === inject.injectNumber && r.phaseNumber === selectedPhase)
+                ).length;
+                const activeCount = participants.filter(p => p.status === 'active').length;
+
                 return (
-                  <div className="space-y-6">
-                    {/* Inject Title and Narrative */}
-                    <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border-2 border-blue-500/50 rounded-lg p-6 shadow-xl">
-                      <div className="flex items-center mb-3">
-                        <FaBullseye className="text-3xl text-blue-400 mr-3" />
+                  <div className="space-y-5">
+                    {/* Inject Header */}
+                    <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-6">
+                      <div className="flex items-start justify-between">
                         <div>
-                          <h2 className="text-3xl font-bold text-white">{inject.title}</h2>
-                          <span className="text-blue-300 text-lg">Inject #{inject.injectNumber}</span>
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Inject #{inject.injectNumber}</span>
+                          <h2 className="text-2xl font-bold text-white mt-1">{inject.title}</h2>
                         </div>
+                        <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded text-xs font-medium">
+                          {inject.phases?.length || 0} Phases · {inject.artifacts?.length || 0} Artifacts
+                        </span>
                       </div>
-                      <div className="mt-4 p-4 bg-black/30 rounded-lg border border-blue-500/30">
-                        <h4 className="text-lg font-semibold text-blue-300 mb-2">Scenario Narrative</h4>
-                        <p className="text-gray-200 text-lg leading-relaxed whitespace-pre-wrap">
+                      <div className="mt-4 pt-4 border-t border-gray-700">
+                        <p className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
                           {inject.narrative}
                         </p>
                       </div>
@@ -986,12 +1003,11 @@ const ControlPanel = () => {
 
                     {/* Artifacts Section */}
                     {inject.artifacts && inject.artifacts.length > 0 && (
-                      <div className="bg-black/30 border border-gray-700 rounded-lg p-6">
-                        <h3 className="text-2xl font-bold text-white mb-4 flex items-center">
-                          <FaFileAlt className="mr-3 text-green-400" />
-                          Evidence & Artifacts ({inject.artifacts.length})
-                        </h3>
-                        <div className="space-y-3">
+                      <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-5">
+                        <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+                          Evidence & Artifacts
+                        </h4>
+                        <div className="space-y-2">
                           {inject.artifacts.map((artifact, idx) => {
                             const artifactId = `artifact-${inject.injectNumber}-${idx}`;
                             const isExpanded = expandedArtifacts.has(artifactId);
@@ -999,31 +1015,25 @@ const ControlPanel = () => {
                             return (
                               <div
                                 key={idx}
-                                className={`border-2 rounded-lg overflow-hidden transition-all ${getArtifactColor(artifact.type)}`}
+                                className="border border-gray-700 rounded-lg overflow-hidden"
                               >
                                 <div
                                   onClick={() => toggleArtifactExpansion(artifactId)}
-                                  className="flex justify-between items-center p-4 cursor-pointer hover:bg-black/20 transition-colors"
+                                  className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-700/30 transition-colors"
                                 >
-                                  <div className="flex items-center gap-3">
-                                    {isExpanded ? (
-                                      <FaChevronDown className="text-xl text-blue-400" />
-                                    ) : (
-                                      <FaChevronRight className="text-xl text-gray-400" />
-                                    )}
-                                    {getArtifactIcon(artifact.type)}
-                                    <div>
-                                      <h4 className="font-bold text-xl text-white">{artifact.title}</h4>
-                                      <span className="text-sm text-gray-300 uppercase tracking-wide">
-                                        Type: {artifact.type}
-                                      </span>
-                                    </div>
-                                  </div>
+                                  {isExpanded ? (
+                                    <FaChevronDown className="text-sm text-gray-400" />
+                                  ) : (
+                                    <FaChevronRight className="text-sm text-gray-500" />
+                                  )}
+                                  {getArtifactIcon(artifact.type)}
+                                  <span className="font-medium text-white">{artifact.title}</span>
+                                  <span className="text-xs text-gray-500 uppercase ml-auto">{artifact.type}</span>
                                 </div>
 
                                 {isExpanded && (
-                                  <div className="border-t-2 border-current p-5 bg-black/30">
-                                    <pre className="text-gray-200 text-base whitespace-pre-wrap font-mono bg-gray-900/50 p-4 rounded-lg border border-gray-600 overflow-x-auto">
+                                  <div className="border-t border-gray-700 p-4 bg-gray-900/40">
+                                    <pre className="text-gray-300 text-sm whitespace-pre-wrap font-mono bg-black/30 p-4 rounded border border-gray-700 overflow-x-auto">
                                       {artifact.content}
                                     </pre>
                                   </div>
@@ -1037,28 +1047,47 @@ const ControlPanel = () => {
 
                     {/* Phases Section */}
                     {inject.phases && inject.phases.length > 0 && (
-                      <div className="bg-black/30 border border-gray-700 rounded-lg p-6">
-                        <h3 className="text-2xl font-bold text-white mb-4 flex items-center">
-                          <FaQuestionCircle className="mr-3 text-yellow-400" />
-                          Decision Phases ({inject.phases.length})
-                        </h3>
+                      <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-5">
+                        {/* Phase Header with selector and controls */}
+                        <div className="flex items-center justify-between mb-5">
+                          <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+                            Decision Phases
+                          </h4>
+                          <div className="flex items-center gap-3">
+                            {/* Response counter */}
+                            <span className="text-xs text-gray-500">
+                              {respondedCount}/{activeCount} responded
+                            </span>
+                            {/* Reveal answer toggle */}
+                            <button
+                              onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
+                              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                showCorrectAnswers
+                                  ? 'bg-gray-600 text-white'
+                                  : 'bg-gray-800 text-gray-400 border border-gray-600 hover:border-gray-500'
+                              }`}
+                            >
+                              {showCorrectAnswers ? <FaEyeSlash className="text-xs" /> : <FaEye className="text-xs" />}
+                              {showCorrectAnswers ? 'Hide Answers' : 'Reveal Answers'}
+                            </button>
+                          </div>
+                        </div>
 
-                        {/* Phase Selector Dropdown */}
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            Select Phase to Present
-                          </label>
-                          <select
-                            value={selectedPhase}
-                            onChange={(e) => setSelectedPhase(parseInt(e.target.value))}
-                            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-yellow-500 transition-colors text-lg"
-                          >
-                            {inject.phases.map((phase) => (
-                              <option key={phase.phaseNumber} value={phase.phaseNumber}>
-                                Phase {phase.phaseNumber} - {phase.phaseName}
-                              </option>
-                            ))}
-                          </select>
+                        {/* Phase tabs */}
+                        <div className="flex gap-1 mb-5 bg-gray-900/40 p-1 rounded-lg">
+                          {inject.phases.map((phase) => (
+                            <button
+                              key={phase.phaseNumber}
+                              onClick={() => { setSelectedPhase(phase.phaseNumber); setShowCorrectAnswers(false); }}
+                              className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-all ${
+                                selectedPhase === phase.phaseNumber
+                                  ? 'bg-gray-700 text-white'
+                                  : 'text-gray-500 hover:text-gray-300'
+                              }`}
+                            >
+                              Phase {phase.phaseNumber}
+                            </button>
+                          ))}
                         </div>
 
                         {/* Selected Phase Content */}
@@ -1067,117 +1096,101 @@ const ControlPanel = () => {
 
                           if (!phase) {
                             return (
-                              <div className="text-center py-8 text-gray-400">
+                              <div className="text-center py-8 text-gray-500">
                                 <p>Selected phase not found.</p>
                               </div>
                             );
                           }
 
+                          // Determine correct answer IDs for highlighting
+                          const correctIds = phase.correctAnswer
+                            ? (Array.isArray(phase.correctAnswer) ? phase.correctAnswer : [phase.correctAnswer])
+                            : [];
+
                           return (
-                            <div className="border-2 border-yellow-500/50 bg-yellow-500/10 rounded-lg overflow-hidden">
-                              {/* Phase Header */}
-                              <div className="p-5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20">
+                            <div>
+                              {/* Question */}
+                              <div className="mb-5">
                                 <div className="flex items-center gap-3 mb-3">
-                                  <span className="bg-yellow-500 text-black px-4 py-2 rounded-full font-bold text-xl">
-                                    Phase {phase.phaseNumber}
-                                  </span>
-                                  <span className="text-sm text-gray-300 bg-black/30 px-3 py-1 rounded-full border border-gray-600">
+                                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     {phase.questionType === 'single' ? 'Single Choice' : phase.questionType === 'multiple' ? 'Multiple Choice' : 'Text Response'}
                                   </span>
                                 </div>
-                                <h4 className="font-bold text-2xl text-white mt-2">
+                                <h4 className="text-xl font-semibold text-white leading-snug">
                                   {phase.question}
                                 </h4>
                               </div>
 
-                              {/* Phase Content */}
-                              <div className="p-5 bg-black/30">
-                                {(phase.questionType === 'single' || phase.questionType === 'multiple') && phase.options && (
-                                  <div className="space-y-3">
-                                    <h5 className="text-lg font-semibold text-yellow-300 mb-3">
-                                      Response Options:
-                                    </h5>
-                                    {phase.options.map((option, optIdx) => (
+                              {/* Options */}
+                              {(phase.questionType === 'single' || phase.questionType === 'multiple') && phase.options && (
+                                <div className="space-y-2">
+                                  {phase.options.map((option, optIdx) => {
+                                    const isCorrect = correctIds.includes(option.id);
+                                    const showAsCorrect = showCorrectAnswers && isCorrect;
+                                    const showAsIncorrect = showCorrectAnswers && !isCorrect;
+
+                                    return (
                                       <div
                                         key={option.id || optIdx}
-                                        className="p-4 bg-gray-800/50 border-2 border-gray-600 rounded-lg hover:border-blue-500/50 transition-all"
+                                        className={`p-4 rounded-lg border transition-all ${
+                                          showAsCorrect
+                                            ? 'bg-emerald-500/5 border-emerald-500/25'
+                                            : showAsIncorrect
+                                            ? 'bg-gray-800/30 border-gray-700/40 opacity-50'
+                                            : 'bg-gray-800/40 border-gray-700'
+                                        }`}
                                       >
-                                        <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-start gap-3">
+                                          <span className={`flex-shrink-0 w-8 h-8 rounded flex items-center justify-center text-sm font-bold ${
+                                            showAsCorrect
+                                              ? 'bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20'
+                                              : 'bg-gray-700 text-gray-300 border border-gray-600'
+                                          }`}>
+                                            {showAsCorrect ? <FaCheck className="text-xs" /> : String.fromCharCode(65 + optIdx)}
+                                          </span>
                                           <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                              <span className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded text-sm font-mono border border-blue-500/30">
-                                                {String.fromCharCode(65 + optIdx)}
-                                              </span>
-                                              <span className="text-white text-lg font-medium">
-                                                {option.text}
-                                              </span>
-                                            </div>
-                                            {option.feedback && (
-                                              <p className="text-gray-300 text-base mt-2 pl-10">
-                                                <span className="text-gray-400 font-semibold">Feedback:</span> {option.feedback}
+                                            <span className="text-white text-base font-medium">
+                                              {option.text}
+                                            </span>
+                                            {showCorrectAnswers && option.feedback && (
+                                              <p className="text-gray-400 text-sm mt-2">
+                                                {option.feedback}
                                               </p>
                                             )}
                                           </div>
-                                          <div className="flex-shrink-0">
-                                            <EffectivenessBadge
-                                              magnitude={option.magnitude || 'least_effective'}
-                                              showDescription={true}
-                                            />
-                                          </div>
+                                          {showCorrectAnswers && (
+                                            <div className="flex-shrink-0">
+                                              <EffectivenessBadge
+                                                magnitude={option.magnitude || 'least_effective'}
+                                                showDescription={false}
+                                              />
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
-                                    ))}
-                                  </div>
-                                )}
+                                    );
+                                  })}
+                                </div>
+                              )}
 
-                                {phase.questionType === 'text' && (
-                                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                                    <p className="text-blue-300 text-lg">
-                                      This is a text response question. Participants will provide their own answers.
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* Correct Answer Display */}
-                                {phase.correctAnswer && (phase.questionType === 'single' || phase.questionType === 'multiple') && (
-                                  <div className="mt-4 p-4 bg-green-500/10 border-2 border-green-500/50 rounded-lg">
-                                    <h5 className="text-lg font-bold text-green-300 mb-2 flex items-center">
-                                      <FaBullseye className="mr-2" />
-                                      Correct Answer(s):
-                                    </h5>
-                                    <div className="space-y-2">
-                                      {(Array.isArray(phase.correctAnswer) ? phase.correctAnswer : [phase.correctAnswer]).map((answerId) => {
-                                        const option = phase.options?.find(o => o.id === answerId);
-                                        if (!option) return null;
-                                        const optIdx = phase.options.indexOf(option);
-                                        return (
-                                          <div key={answerId} className="flex items-center gap-3 text-white text-lg">
-                                            <span className="bg-green-500 text-black px-2 py-1 rounded font-mono font-bold">
-                                              {String.fromCharCode(65 + optIdx)}
-                                            </span>
-                                            <span>{option.text}</span>
-                                            <EffectivenessBadge
-                                              magnitude={option.magnitude || 'least_effective'}
-                                              showDescription={false}
-                                            />
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                              {phase.questionType === 'text' && (
+                                <div className="p-4 bg-gray-800/40 border border-gray-700 rounded-lg">
+                                  <p className="text-gray-400">
+                                    Open-ended response — participants will provide their own written answers.
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
                       </div>
                     )}
 
-                    {/* No Content Message */}
+                    {/* No Content */}
                     {(!inject.artifacts || inject.artifacts.length === 0) &&
                      (!inject.phases || inject.phases.length === 0) && (
-                      <div className="text-center py-12 text-gray-400 bg-black/30 border border-gray-700 rounded-lg">
-                        <FaFileAlt className="text-4xl mx-auto mb-3 text-gray-600" />
+                      <div className="text-center py-12 text-gray-500 bg-gray-800/40 border border-gray-700 rounded-lg">
+                        <FaFileAlt className="text-3xl mx-auto mb-3 text-gray-600" />
                         <p>This inject has no artifacts or phases configured yet.</p>
                       </div>
                     )}
@@ -1187,11 +1200,11 @@ const ControlPanel = () => {
 
               {/* No Inject Selected */}
               {!selectedPresentationInject && (
-                <div className="text-center py-12 text-gray-400 bg-black/30 border border-gray-700 rounded-lg">
-                  <FaDesktop className="text-5xl mx-auto mb-4 text-gray-600" />
-                  <p className="text-xl mb-2">Select an inject from the dropdown above to begin presenting.</p>
-                  <p className="text-sm">
-                    Only active injects are available for presentation.
+                <div className="text-center py-16 text-gray-500">
+                  <FaDesktop className="text-4xl mx-auto mb-4 text-gray-600" />
+                  <p className="text-lg">Select an inject to begin presenting.</p>
+                  <p className="text-sm mt-1 text-gray-600">
+                    Only active injects are available.
                   </p>
                 </div>
               )}
@@ -1200,58 +1213,80 @@ const ControlPanel = () => {
 
           {activeTab === 'summary' && (
             <div>
-              <h3 className="text-xl font-bold mb-4 text-white">Exercise Summary</h3>
-              <p className="text-gray-400 mb-6">
-                View the exercise drill presentation phases and content.
-              </p>
+              {/* Header */}
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white">Exercise Summary</h3>
+                  <p className="text-gray-500 text-sm mt-1">Review drill presentation phases and content.</p>
+                </div>
+                {summaryData.length > 0 && (
+                  <span className="bg-gray-700 text-gray-300 px-3 py-1 rounded text-xs font-medium">
+                    {summaryData.length} {summaryData.length === 1 ? 'Phase' : 'Phases'}
+                  </span>
+                )}
+              </div>
 
               {summaryData.length === 0 ? (
-                <div className="flex items-center justify-center p-12 text-gray-400 bg-black/30 border border-gray-700 rounded-lg">
-                  <div className="text-center">
-                    <FaFileAlt className="text-5xl mx-auto mb-4 text-gray-600" />
-                    <p className="text-lg">No summary phases have been added yet.</p>
-                    <p className="text-sm mt-2">Go to Dashboard → Summary to add presentation phases.</p>
-                  </div>
+                <div className="text-center py-16 text-gray-500">
+                  <FaFileAlt className="text-4xl mx-auto mb-4 text-gray-600" />
+                  <p className="text-lg">No summary phases have been added yet.</p>
+                  <p className="text-sm mt-1 text-gray-600">Go to Dashboard to add presentation phases.</p>
                 </div>
               ) : (
-                <div className="flex bg-black/30 border border-gray-700 rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
+                <div className="flex bg-gray-800/60 border border-gray-700 rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
                   {/* Phase Navigation Sidebar */}
-                  <div className="w-64 bg-black/30 border-r border-gray-700 p-4 overflow-y-auto">
-                    <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Phases</h4>
-                    <div className="space-y-2">
-                      {summaryData.map((phase, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setSelectedSummaryPhase(index)}
-                          className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
-                            selectedSummaryPhase === index
-                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                              : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 border border-transparent'
-                          }`}
-                        >
-                          <div className="text-xs text-gray-500 mb-1">Phase {phase.phaseNumber}</div>
-                          <div className="font-medium text-sm line-clamp-2">{phase.title}</div>
-                        </button>
-                      ))}
+                  <div className="w-60 border-r border-gray-700 overflow-y-auto">
+                    <div className="p-3">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-3">Phases</h4>
+                      <div className="space-y-1">
+                        {summaryData.map((phase, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setSelectedSummaryPhase(index)}
+                            className={`w-full text-left px-3 py-3 rounded-lg transition-all ${
+                              selectedSummaryPhase === index
+                                ? 'bg-blue-600/10 text-white border border-blue-500/20'
+                                : 'text-gray-400 hover:bg-gray-700/40 hover:text-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className={`flex-shrink-0 w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
+                                selectedSummaryPhase === index
+                                  ? 'bg-blue-600/20 text-blue-400/80'
+                                  : 'bg-gray-800 text-gray-500 border border-gray-700'
+                              }`}>
+                                {phase.phaseNumber}
+                              </span>
+                              <span className="font-medium text-sm line-clamp-2">{phase.title}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
                   {/* Phase Content */}
-                  <div className="flex-1 p-8 overflow-y-auto">
+                  <div className="flex-1 overflow-y-auto">
                     {summaryData[selectedSummaryPhase] && (
-                      <div>
-                        <div className="mb-6">
-                          <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded text-sm font-semibold border border-purple-500/30">
+                      <div className="p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Phase {summaryData[selectedSummaryPhase].phaseNumber}
                           </span>
+                          <span className="text-gray-700">·</span>
+                          <span className="text-xs text-gray-500">
+                            {selectedSummaryPhase + 1} of {summaryData.length}
+                          </span>
                         </div>
-                        <h2 className="text-3xl font-bold text-white mb-6">
+                        <h2 className="text-2xl font-bold text-white mb-6 leading-snug">
                           {summaryData[selectedSummaryPhase].title}
                         </h2>
-                        <div
-                          className="summary-content"
-                          dangerouslySetInnerHTML={{ __html: summaryData[selectedSummaryPhase].description }}
-                        />
+                        <div className="border-t border-gray-700 pt-6">
+                          <div
+                            className="summary-content"
+                            dangerouslySetInnerHTML={{ __html: summaryData[selectedSummaryPhase].description }}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1264,19 +1299,19 @@ const ControlPanel = () => {
                   <button
                     onClick={() => setSelectedSummaryPhase(prev => Math.max(0, prev - 1))}
                     disabled={selectedSummaryPhase === 0}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-600 hover:border-gray-500 text-gray-300 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    ← Previous Phase
+                    Previous
                   </button>
-                  <span className="text-gray-400">
-                    Phase {selectedSummaryPhase + 1} of {summaryData.length}
+                  <span className="text-xs text-gray-500">
+                    {selectedSummaryPhase + 1} / {summaryData.length}
                   </span>
                   <button
                     onClick={() => setSelectedSummaryPhase(prev => Math.min(summaryData.length - 1, prev + 1))}
                     disabled={selectedSummaryPhase === summaryData.length - 1}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    Next Phase →
+                    Next
                   </button>
                 </div>
               )}
@@ -1290,8 +1325,8 @@ const ControlPanel = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-red-500/20 p-3 rounded-full">
-                <FaExclamationTriangle className="text-red-400 text-xl" />
+              <div className="bg-red-500/10 p-3 rounded-full">
+                <FaExclamationTriangle className="text-red-400/80 text-xl" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Reset Exercise</h3>
@@ -1310,7 +1345,7 @@ const ControlPanel = () => {
               </button>
               <button
                 onClick={handleResetExercise}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+                className="flex-1 px-4 py-2 bg-red-600/80 hover:bg-red-500/80 text-white rounded-lg transition-colors font-semibold"
               >
                 Reset Exercise
               </button>
@@ -1324,8 +1359,8 @@ const ControlPanel = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-orange-500/20 p-3 rounded-full">
-                <FaExclamationTriangle className="text-orange-400 text-xl" />
+              <div className="bg-red-500/10 p-3 rounded-full">
+                <FaExclamationTriangle className="text-red-400/80 text-xl" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Reset Inject #{resetInjectNumber}</h3>
@@ -1344,7 +1379,7 @@ const ControlPanel = () => {
               </button>
               <button
                 onClick={handleResetInject}
-                className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-semibold"
+                className="flex-1 px-4 py-2 bg-red-600/80 hover:bg-red-500/80 text-white rounded-lg transition-colors font-semibold"
               >
                 Reset Inject
               </button>
@@ -1358,8 +1393,8 @@ const ControlPanel = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-red-500/20 p-3 rounded-full">
-                <FaExclamationTriangle className="text-red-400 text-xl" />
+              <div className="bg-red-500/10 p-3 rounded-full">
+                <FaExclamationTriangle className="text-red-400/80 text-xl" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Delete All Participants</h3>
@@ -1378,7 +1413,7 @@ const ControlPanel = () => {
               </button>
               <button
                 onClick={handleDeleteAll}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+                className="flex-1 px-4 py-2 bg-red-600/80 hover:bg-red-500/80 text-white rounded-lg transition-colors font-semibold"
               >
                 Delete All
               </button>

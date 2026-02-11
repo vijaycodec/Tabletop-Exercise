@@ -57,6 +57,9 @@ app.use('/api/participants', participantRouteons);
 // Error handler middleware
 app.use(errorHandler);
 
+// Track socket-to-participant mapping
+const socketParticipantMap = new Map();
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('✅ New client connected:', socket.id);
@@ -65,25 +68,77 @@ io.on('connection', (socket) => {
   socket.on('joinExercise', (exerciseId) => {
     socket.join(`exercise-${exerciseId}`);
     console.log(`📥 Socket ${socket.id} joined exercise-${exerciseId}`);
-
-    // Log all rooms this socket is in
-    const rooms = Array.from(socket.rooms);
-    console.log(`  ➡️ Socket ${socket.id} is now in rooms:`, rooms);
   });
 
-  // Join participant room
-  socket.on('joinAsParticipant', (participantId) => {
+  // Join participant room and track mapping
+  socket.on('joinAsParticipant', async (participantId) => {
     socket.join(`participant-${participantId}`);
     console.log(`📥 Socket ${socket.id} joined participant-${participantId}`);
 
-    // Log all rooms this socket is in
-    const rooms = Array.from(socket.rooms);
-    console.log(`  ➡️ Socket ${socket.id} is now in rooms:`, rooms);
+    // Store socket-to-participant mapping
+    socketParticipantMap.set(socket.id, participantId);
+
+    // Update socketId and handle reconnection
+    try {
+      const Participant = require('./models/Participant');
+      const participant = await Participant.findOne({ participantId });
+
+      if (participant) {
+        participant.socketId = socket.id;
+
+        // Auto-restore if participant had left (reconnection)
+        if (participant.status === 'left') {
+          participant.status = 'active';
+          console.log(`🔄 Participant ${participant.name} (${participantId}) reconnected — status restored to active`);
+
+          // Notify facilitator about rejoin
+          io.to(`exercise-${participant.exercise}`).emit('participantRejoined', {
+            participantId,
+            name: participant.name,
+            status: 'active'
+          });
+
+          // Notify participant that they've been restored
+          socket.emit('reconnected', { status: 'active' });
+        }
+
+        await participant.save();
+      }
+    } catch (err) {
+      console.error('Failed to update participant on connect:', err.message);
+    }
   });
 
-  // Handle disconnection
-  socket.on('disconnect', () => {
+  // Handle disconnection - update participant status
+  socket.on('disconnect', async () => {
     console.log('❌ Client disconnected:', socket.id);
+
+    const participantId = socketParticipantMap.get(socket.id);
+    if (participantId) {
+      socketParticipantMap.delete(socket.id);
+
+      try {
+        const Participant = require('./models/Participant');
+        const participant = await Participant.findOne({ participantId });
+
+        if (participant && participant.status === 'active') {
+          participant.status = 'left';
+          participant.socketId = null;
+          await participant.save();
+
+          console.log(`👋 Participant ${participant.name} (${participantId}) marked as left`);
+
+          // Notify facilitator
+          io.to(`exercise-${participant.exercise}`).emit('participantDisconnected', {
+            participantId,
+            name: participant.name,
+            status: 'left'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to update participant on disconnect:', err.message);
+      }
+    }
   });
 });
 

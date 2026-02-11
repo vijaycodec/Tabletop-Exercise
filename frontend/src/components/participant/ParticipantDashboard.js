@@ -4,11 +4,54 @@ import socketService from '../../services/socket';
 import { participantAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import {
-  FaFileAlt, FaLock, FaLockOpen,
-  FaCheckCircle, FaClock, FaFlag, FaExclamationTriangle,
-  FaDesktop, FaServer, FaNetworkWired, FaUserShield, FaQuestionCircle
+  FaFileAlt, FaLock, FaLockOpen, FaSync,
+  FaClock, FaExclamationTriangle,
+  FaDesktop, FaServer, FaNetworkWired, FaQuestionCircle
 } from 'react-icons/fa';
 import { EffectivenessBadge } from '../../utils/effectivenessBadge';
+
+// Reusable typewriter text component — types out text character by character
+const TypewriterText = ({ text, animate = false, delay = 0, totalDuration = 3500 }) => {
+  const [displayed, setDisplayed] = useState(animate ? '' : (text || ''));
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() => {
+    if (!text || !animate) {
+      setDisplayed(text || '');
+      return;
+    }
+
+    let intervalId;
+    const delayTimer = setTimeout(() => {
+      setTyping(true);
+      const speed = Math.max(15, Math.min(45, totalDuration / text.length));
+      let i = 0;
+
+      intervalId = setInterval(() => {
+        i += 1;
+        if (i >= text.length) {
+          setDisplayed(text);
+          setTyping(false);
+          clearInterval(intervalId);
+        } else {
+          setDisplayed(text.slice(0, i));
+        }
+      }, speed);
+    }, delay);
+
+    return () => {
+      clearTimeout(delayTimer);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []); // runs on mount only — component is keyed for remount
+
+  return (
+    <>
+      {displayed}
+      {typing && <span className="typing-cursor">|</span>}
+    </>
+  );
+};
 
 const ParticipantDashboard = () => {
   const { exerciseId } = useParams();
@@ -26,6 +69,7 @@ const ParticipantDashboard = () => {
   const [countdown, setCountdown] = useState(3);
   const [pendingInject, setPendingInject] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [animationTrigger, setAnimationTrigger] = useState(0);
 
   useEffect(() => {
     const participantId = localStorage.getItem('participantId');
@@ -55,15 +99,30 @@ const ParticipantDashboard = () => {
       socketService.on('scoreUpdate', handleScoreUpdate);
       socketService.on('participantAdmitted', handleParticipantAdmitted);
       socketService.on('participantTerminated', handleParticipantTerminated);
+      socketService.on('reconnected', () => {
+        console.log('🔄 Reconnected — refetching exercise data');
+        toast.success('Session restored successfully!', { icon: '🔄' });
+        fetchExerciseData(participantId);
+      });
       console.log('✅ Socket listeners configured');
 
       // Join rooms (will join when socket connects)
       socketService.joinAsParticipant(participantId);
       socketService.joinExercise(exerciseId);
 
-      // Start timer
+      // Persistent timer — store start time in localStorage
+      const timerKey = `ttx_timer_${exerciseId}_${participantId}`;
+      let startTime = localStorage.getItem(timerKey);
+      if (!startTime) {
+        startTime = Date.now();
+        localStorage.setItem(timerKey, startTime.toString());
+      } else {
+        startTime = parseInt(startTime);
+      }
+      setTimeSpent(Math.floor((Date.now() - startTime) / 1000));
+
       const timer = setInterval(() => {
-        setTimeSpent(prev => prev + 1);
+        setTimeSpent(Math.floor((Date.now() - startTime) / 1000));
       }, 1000);
 
       return () => {
@@ -77,6 +136,7 @@ const ParticipantDashboard = () => {
         socketService.off('scoreUpdate');
         socketService.off('participantAdmitted');
         socketService.off('participantTerminated');
+        socketService.off('reconnected');
         socketService.disconnect();
       };
     }
@@ -100,6 +160,7 @@ const ParticipantDashboard = () => {
               setCurrentPhaseNumber(1);
               setResponses({});
               setPendingInject(null);
+              setAnimationTrigger(prev => prev + 1);
 
               // Refresh participant data
               const participantId = localStorage.getItem('participantId');
@@ -273,7 +334,7 @@ const ParticipantDashboard = () => {
       duration: 6000,
       icon: '⚠️'
     });
-    navigate('/join');
+    navigate('/participant/join');
   };
 
   const handleAnswerSelect = (phaseNumber, questionIndex, answer) => {
@@ -388,19 +449,30 @@ const ParticipantDashboard = () => {
   }
 
   if (!participantData || participantData.status !== 'active') {
+    const isLeft = participantData?.status === 'left';
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl p-8 max-w-md w-full text-center border border-gray-700">
-          <div className="animate-pulse">
-            <FaClock className="text-5xl text-yellow-400 mx-auto mb-4" />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            {isLeft ? (
+              <FaSync className="text-2xl text-gray-400 animate-spin" />
+            ) : (
+              <FaClock className="text-2xl text-gray-400 animate-pulse" />
+            )}
           </div>
-          <h2 className="text-2xl font-bold mb-4 text-white">Waiting for Admission</h2>
-          <p className="text-gray-400 mb-6">
-            You are currently on the waiting list. The facilitator will admit you soon.
+          <h2 className="text-xl font-bold mb-2 text-white">
+            {isLeft ? 'Reconnecting...' : 'Waiting for Admission'}
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            {isLeft
+              ? 'Restoring your previous session. Please wait a moment.'
+              : 'You are on the waiting list. The facilitator will admit you shortly.'}
           </p>
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-            <p className="text-sm text-yellow-300">
-              Once admitted, you'll be able to see the exercise injects and start answering questions.
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <p className="text-sm text-gray-400">
+              {isLeft
+                ? 'Your answers and progress have been saved. You will be reconnected automatically.'
+                : 'Once admitted, you\'ll see the exercise injects and can start answering.'}
             </p>
           </div>
         </div>
@@ -409,42 +481,31 @@ const ParticipantDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 participant-dashboard">
+    <div className="min-h-screen bg-gray-900 participant-dashboard">
       {/* Header */}
-      <div className="bg-black/40 backdrop-blur-sm border-b border-gray-700 sticky top-0 z-50">
+      <div className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <FaUserShield className="text-white text-xl" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">{exerciseData?.title}</h1>
-                <p className="text-gray-400 text-sm">{exerciseData?.description}</p>
+              <div className="space-y-1.5">
+                <h1 className="text-lg font-bold text-white leading-relaxed">{exerciseData?.title}</h1>
+                <p className="text-gray-500 text-xs leading-relaxed">{exerciseData?.description}</p>
               </div>
             </div>
-            <div className="flex items-center gap-6">
-              <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">PARTICIPANT</div>
-                <div className="text-white font-semibold text-lg flex items-center gap-2">
+            <div className="flex items-center gap-5 ml-6">
+              <div className="text-right">
+                <div className="text-white font-medium text-sm flex items-center gap-2">
                   {participantData?.name || 'Anonymous'}
-                  {participantData?.team && <span className="text-gray-400 text-sm">({participantData.team})</span>}
+                  {participantData?.team && <span className="text-gray-500 text-xs">({participantData.team})</span>}
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">TIME</div>
-                <div className="text-white font-mono font-bold text-lg flex items-center gap-2">
-                  <FaClock className="text-blue-400" />
-                  {formatTime(timeSpent)}
-                </div>
+              <div className="text-gray-400 text-sm font-mono">
+                {formatTime(timeSpent)}
               </div>
-              <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">LIVE</div>
-                <div className={`w-3 h-3 rounded-full mx-auto ${socketConnected ? 'bg-green-400 shadow-lg shadow-green-500/50' : 'bg-red-400 animate-pulse'}`}></div>
-              </div>
-              <div className="text-center bg-gradient-to-br from-green-500/20 to-emerald-600/20 px-6 py-3 rounded-lg border border-green-500/30">
-                <div className="text-xs text-green-300 mb-1">SCORE</div>
-                <div className="text-white font-bold text-2xl">{participantData?.totalScore || 0}</div>
+              <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-gray-600 animate-pulse'}`}></div>
+              <div className="bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg">
+                <div className="text-xs text-gray-500 mb-0.5">SCORE</div>
+                <div className="text-white font-bold text-lg leading-none">{participantData?.totalScore || 0}</div>
               </div>
             </div>
           </div>
@@ -456,169 +517,130 @@ const ParticipantDashboard = () => {
           {/* Left Panel - Inject Content or Countdown */}
           <div>
             {countdownActive && pendingInject ? (
-              /* Countdown Display - Replaces Inject Content */
-              <div className="bg-gradient-to-br from-cyan-600/20 via-blue-600/20 to-cyan-600/20 border-2 border-cyan-500/50 rounded-lg p-8 shadow-xl">
+              /* Countdown Display */
+              <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-8">
                 <div className="text-center mb-6">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                    <h2 className="text-3xl font-bold text-white">New Inject Released!</h2>
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                  </div>
-                  <p className="text-cyan-300 text-xl font-semibold">{pendingInject.title}</p>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">New Inject</span>
+                  <h2 className="text-2xl font-bold text-white mt-1">{pendingInject.title}</h2>
                 </div>
 
-                <div className="flex flex-col items-center justify-center py-8">
+                <div className="flex flex-col items-center justify-center py-6">
                   <div className="relative mb-6">
-                    <div className="w-32 h-32 rounded-full bg-cyan-500/20 flex items-center justify-center border-4 border-cyan-400/30">
-                      <div className="text-6xl font-bold text-cyan-300">{countdown}</div>
+                    <div className="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center border-2 border-gray-600">
+                      <div className="text-5xl font-bold text-white">{countdown}</div>
                     </div>
-                    <div className="absolute inset-0 rounded-full border-4 border-cyan-400 animate-ping opacity-20"></div>
                   </div>
-
-                  <p className="text-2xl text-cyan-200 font-semibold mb-2">
-                    Starting in {countdown} seconds
+                  <p className="text-lg text-gray-400 font-medium">
+                    Starting in {countdown}s
                   </p>
-                  <p className="text-lg text-gray-400">Prepare to analyze the new scenario...</p>
                 </div>
 
-                <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <p className="text-center text-blue-300">
-                    Get ready to review evidence and make critical decisions
+                <div className="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg">
+                  <p className="text-center text-gray-400 text-sm">
+                    Prepare to review evidence and make decisions
                   </p>
                 </div>
               </div>
             ) : currentInject ? (
               <>
                 {/* Inject Header Card */}
-                <div className="bg-gradient-to-r from-red-600 via-orange-600 to-red-600 rounded-lg p-6 mb-6 shadow-2xl border border-red-500/50">
+                <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-5 mb-5 inject-card-animate">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-lg flex items-center justify-center">
-                          <FaExclamationTriangle className="text-white text-xl animate-pulse" />
-                        </div>
-                        <div>
-                          <div className="text-red-100 text-xs font-semibold tracking-wider">INJECT #{currentInject.injectNumber}</div>
-                          <h2 className="text-2xl font-bold text-white">{currentInject.title}</h2>
-                        </div>
-                      </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Inject #{currentInject.injectNumber}</span>
+                      <h2 className="text-xl font-bold text-white mt-1">{currentInject.title}</h2>
                     </div>
-                    <div className={`px-4 py-2 rounded-lg flex items-center gap-2 font-semibold text-sm ${
+                    <span className={`px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 ${
                       currentInject.responsesOpen
-                        ? 'bg-green-500/30 text-green-100 border border-green-400/50'
-                        : 'bg-red-500/30 text-red-100 border border-red-400/50'
+                        ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+                        : 'bg-gray-800 text-gray-400 border border-gray-600'
                     }`}>
-                      {currentInject.responsesOpen ? (
-                        <>
-                          <FaLockOpen />
-                          OPEN
-                        </>
-                      ) : (
-                        <>
-                          <FaLock />
-                          CLOSED
-                        </>
-                      )}
-                    </div>
+                      {currentInject.responsesOpen ? <FaLockOpen className="text-xs" /> : <FaLock className="text-xs" />}
+                      {currentInject.responsesOpen ? 'Open' : 'Closed'}
+                    </span>
                   </div>
                 </div>
 
                 {/* Narrative Section */}
-                <div className="bg-gray-800/50 backdrop-blur rounded-lg border border-gray-700 p-6 mb-6 shadow-xl">
-                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-700">
-                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <FaFileAlt className="text-blue-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white">Scenario Narrative</h3>
-                  </div>
-                  <div className="bg-black/30 border-l-4 border-blue-500 p-5 rounded-r-lg">
-                    <p className="whitespace-pre-line text-gray-300 leading-relaxed">
-                      {currentInject.narrative || "Inject narrative will appear here..."}
-                    </p>
-                  </div>
+                <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-5 mb-5 inject-card-animate" style={{ animationDelay: '0.1s' }}>
+                  <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Scenario Narrative</h4>
+                  <p className="whitespace-pre-line text-gray-300 leading-relaxed">
+                    <TypewriterText
+                      key={`narrative-${animationTrigger}`}
+                      text={currentInject.narrative || "Inject narrative will appear here..."}
+                      animate={animationTrigger > 0}
+                      delay={200}
+                      totalDuration={8000}
+                    />
+                  </p>
                 </div>
 
                 {/* Artifacts Section */}
                 {currentInject.artifacts && currentInject.artifacts.length > 0 && (
-                  <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center">
-                        <FaFlag className="text-red-400" />
-                      </div>
-                      <h3 className="text-xl font-bold text-white">Evidence & Artifacts</h3>
-                      <div className="ml-auto bg-gray-700/50 px-3 py-1 rounded-full text-sm text-gray-300">
-                        {currentInject.artifacts.length} items
-                      </div>
+                  <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-5 mb-5 inject-card-animate" style={{ animationDelay: '0.2s' }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Evidence & Artifacts</h4>
+                      <span className="text-xs text-gray-500">{currentInject.artifacts.length} items</span>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                       {currentInject.artifacts.map((artifact, index) => (
-                        <div key={index} className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-lg overflow-hidden shadow-xl hover:border-blue-500/50 transition-all duration-300">
+                        <div key={index} className="border border-gray-700 rounded-lg overflow-hidden artifact-animate" style={{ animationDelay: `${0.3 + index * 0.15}s` }}>
                           {/* Artifact Header */}
-                          <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-4 border-b border-gray-700">
+                          <div className="p-4 border-b border-gray-700">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                  artifact.type === 'log' ? 'bg-blue-500/20' :
-                                  artifact.type === 'alert' ? 'bg-red-500/20' :
-                                  artifact.type === 'network' ? 'bg-purple-500/20' :
-                                  'bg-gray-500/20'
-                                }`}>
-                                  {artifact.type === 'log' && <FaDesktop className="text-blue-400" />}
-                                  {artifact.type === 'alert' && <FaExclamationTriangle className="text-red-400" />}
-                                  {artifact.type === 'network' && <FaNetworkWired className="text-purple-400" />}
-                                  {artifact.type === 'document' && <FaFileAlt className="text-gray-400" />}
+                                <div className="w-8 h-8 bg-gray-800 border border-gray-700 rounded flex items-center justify-center">
+                                  {artifact.type === 'log' && <FaDesktop className="text-gray-400 text-sm" />}
+                                  {artifact.type === 'alert' && <FaExclamationTriangle className="text-gray-400 text-sm" />}
+                                  {artifact.type === 'network' && <FaNetworkWired className="text-gray-400 text-sm" />}
+                                  {artifact.type === 'document' && <FaFileAlt className="text-gray-400 text-sm" />}
+                                  {!['log', 'alert', 'network', 'document'].includes(artifact.type) && <FaFileAlt className="text-gray-400 text-sm" />}
                                 </div>
                                 <div>
-                                  <div className="text-white font-bold font-mono text-sm">{artifact.name}</div>
-                                  <div className="text-gray-400 text-xs mt-1">
-                                    {artifact.metadata?.eventId && (
-                                      <span className="bg-gray-700 px-2 py-0.5 rounded mr-2">
-                                        Event: {artifact.metadata.eventId}
-                                      </span>
-                                    )}
-                                    {artifact.metadata?.alertId && (
-                                      <span className="bg-gray-700 px-2 py-0.5 rounded mr-2">
-                                        Alert: {artifact.metadata.alertId}
-                                      </span>
-                                    )}
+                                  <div className="text-white font-medium text-sm">{artifact.name}</div>
+                                  <div className="text-gray-500 text-xs mt-0.5 flex gap-2">
+                                    <span className="uppercase">{artifact.type}</span>
+                                    {artifact.metadata?.eventId && <span>Event: {artifact.metadata.eventId}</span>}
+                                    {artifact.metadata?.alertId && <span>Alert: {artifact.metadata.alertId}</span>}
                                   </div>
                                 </div>
                               </div>
                               {artifact.metadata?.severity && (
-                                <div className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
-                                  artifact.metadata.severity === 'Critical' ? 'bg-red-500/20 text-red-300 border border-red-500/50' :
-                                  artifact.metadata.severity === 'High' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50' :
-                                  artifact.metadata.severity === 'Medium' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50' :
-                                  'bg-green-500/20 text-green-300 border border-green-500/50'
-                                }`}>
-                                  {artifact.metadata.severity.toUpperCase()}
-                                </div>
+                                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-800 text-gray-300 border border-gray-600">
+                                  {artifact.metadata.severity}
+                                </span>
                               )}
                             </div>
                           </div>
 
                           {/* Artifact Content */}
-                          <div className="p-4 bg-black/30">
-                            <pre className="whitespace-pre-wrap text-sm font-mono bg-gray-900/50 border border-gray-700 p-4 rounded-lg text-gray-300 overflow-x-auto">
-{artifact.content}
+                          <div className="p-4 bg-gray-900/40">
+                            <pre className="whitespace-pre-wrap text-sm font-mono bg-black/30 border border-gray-700 p-4 rounded text-gray-300 overflow-x-auto">
+<TypewriterText
+                                key={`artifact-${index}-${animationTrigger}`}
+                                text={artifact.content}
+                                animate={animationTrigger > 0}
+                                delay={600 + index * 500}
+                                totalDuration={6000}
+                              />
                             </pre>
 
                             {/* Metadata Footer */}
-                            {artifact.metadata && (
-                              <div className="mt-3 pt-3 border-t border-gray-700 grid grid-cols-2 gap-3 text-xs">
+                            {artifact.metadata && (artifact.metadata.timestamp || artifact.metadata.source) && (
+                              <div className="mt-3 pt-3 border-t border-gray-700 flex gap-6 text-xs">
                                 {artifact.metadata.timestamp && (
-                                  <div className="flex items-center gap-2">
-                                    <FaClock className="text-blue-400" />
-                                    <span className="text-gray-400">Timestamp:</span>
-                                    <span className="text-gray-300 font-mono">{artifact.metadata.timestamp}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <FaClock className="text-gray-500" />
+                                    <span className="text-gray-500">Timestamp:</span>
+                                    <span className="text-gray-400 font-mono">{artifact.metadata.timestamp}</span>
                                   </div>
                                 )}
                                 {artifact.metadata.source && (
-                                  <div className="flex items-center gap-2">
-                                    <FaServer className="text-purple-400" />
-                                    <span className="text-gray-400">Source:</span>
-                                    <span className="text-gray-300 font-mono">{artifact.metadata.source}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <FaServer className="text-gray-500" />
+                                    <span className="text-gray-500">Source:</span>
+                                    <span className="text-gray-400 font-mono">{artifact.metadata.source}</span>
                                   </div>
                                 )}
                               </div>
@@ -631,12 +653,12 @@ const ParticipantDashboard = () => {
                 )}
               </>
             ) : (
-              <div className="bg-gray-800/50 backdrop-blur rounded-lg border border-gray-700 p-12 text-center shadow-xl">
-                <div className="w-20 h-20 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FaFileAlt className="text-4xl text-gray-500" />
+              <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-12 text-center">
+                <div className="w-14 h-14 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FaFileAlt className="text-xl text-gray-500" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Waiting for Inject</h3>
-                <p className="text-gray-400">The facilitator will release the first inject shortly.</p>
+                <h3 className="text-lg font-bold text-white mb-1">Waiting for Inject</h3>
+                <p className="text-gray-500 text-sm">The facilitator will release the first inject shortly.</p>
               </div>
             )}
           </div>
@@ -644,29 +666,29 @@ const ParticipantDashboard = () => {
           {/* Right Panel - Phase Questions */}
           <div>
             {countdownActive && pendingInject ? (
-              /* Countdown Info - Replaces Phase Section */
-              <div className="bg-gradient-to-br from-cyan-600/20 via-blue-600/20 to-cyan-600/20 border-2 border-cyan-500/50 rounded-lg p-6 shadow-xl">
+              /* Countdown Info */
+              <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-6">
                 <div className="text-center mb-4">
-                  <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <FaQuestionCircle className="text-cyan-400 text-2xl" />
+                  <div className="w-10 h-10 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FaQuestionCircle className="text-gray-400" />
                   </div>
-                  <h3 className="text-xl font-bold text-cyan-300 mb-2">Tasks Loading...</h3>
-                  <p className="text-cyan-200 text-sm">
-                    {pendingInject.phases?.length || 0} tasks will be available after the countdown
+                  <h3 className="text-lg font-bold text-white mb-1">Tasks Loading</h3>
+                  <p className="text-gray-500 text-sm">
+                    {pendingInject.phases?.length || 0} tasks available after countdown
                   </p>
                 </div>
-                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4 mt-4">
-                  <ul className="space-y-2 text-cyan-200 text-sm">
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mt-4">
+                  <ul className="space-y-2 text-gray-400 text-sm">
                     <li className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+                      <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
                       Review the scenario narrative carefully
                     </li>
                     <li className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+                      <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
                       Analyze all provided evidence and artifacts
                     </li>
                     <li className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+                      <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
                       Prepare to make critical decisions
                     </li>
                   </ul>
@@ -675,37 +697,26 @@ const ParticipantDashboard = () => {
             ) : (
               /* Normal Phase Questions Section */
               <div className="space-y-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                    <FaQuestionCircle className="text-blue-400" />
-                  </div>
-                  <h2 className="text-xl font-bold text-white">Tasks</h2>
-                  {phases && phases.length > 0 && (
-                    <div className="ml-auto flex items-center gap-2">
-                      <div className="bg-blue-500/20 px-3 py-1 rounded-full text-sm text-blue-300 font-semibold">
-                        Phase {currentPhaseNumber} of {phases.length}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {phases && phases.length > 0 ? (
                 <div className="space-y-4">
                   {/* Show only current phase */}
                   {phases.filter(phase => phase.phaseNumber === currentPhaseNumber).map((phase, phaseIndex) => (
-                    <div key={phaseIndex} className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-lg overflow-hidden shadow-xl hover:border-blue-500/50 transition-all duration-300">
+                    <div key={phaseIndex} className="bg-gray-800/60 border border-gray-700 rounded-lg overflow-hidden inject-card-animate" style={{ animationDelay: '0.3s' }}>
                       {/* Task Header */}
-                      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
-                        <div className="flex items-center justify-between mb-1">
+                      <div className="p-4 border-b border-gray-700">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center font-bold text-white">
+                            <span className="flex-shrink-0 w-9 h-9 bg-gray-700 border border-gray-600 rounded flex items-center justify-center text-sm font-bold text-white">
                               {phase.phaseNumber}
-                            </div>
+                            </span>
                             <div>
-                              <div className="text-blue-100 text-xs font-semibold">TASK {phase.phaseNumber}</div>
-                              <h3 className="text-white font-bold text-lg">{phase.phaseName}</h3>
+                              <div className="text-xs text-gray-500 uppercase tracking-wider">Task {phase.phaseNumber}</div>
+                              <h3 className="text-white font-semibold">{phase.phaseName}</h3>
                             </div>
                           </div>
+                          <span className="bg-gray-800 text-gray-400 px-3 py-1 rounded text-xs font-medium border border-gray-700">
+                            Phase {currentPhaseNumber} of {phases.length}
+                          </span>
                         </div>
                       </div>
 
@@ -713,11 +724,10 @@ const ParticipantDashboard = () => {
                       <div className="p-5">
                         {/* Question */}
                         <div className="mb-5">
-                          <div className="text-gray-400 text-xs font-semibold mb-2 tracking-wider">QUESTION</div>
+                          <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Question</div>
                           <p className="text-white font-medium leading-relaxed">{phase.question}</p>
                           {phase.questionType === 'multiple' && (
-                            <div className="mt-2 text-xs text-blue-400 flex items-center gap-1">
-                              <FaCheckCircle />
+                            <div className="mt-2 text-xs text-gray-500">
                               <span>Select all that apply</span>
                             </div>
                           )}
@@ -736,17 +746,17 @@ const ParticipantDashboard = () => {
                             const isDisabled = !currentInject?.responsesOpen || hasAnswered || phaseProgressionLocked;
 
                             return (
-                              <label key={optIndex} className={`flex items-center justify-between p-3 bg-black/30 border rounded-lg transition-all duration-200 ${
+                              <label key={optIndex} className={`flex items-center justify-between p-3.5 border rounded-lg transition-all duration-200 ${
                                 hasAnswered
                                   ? (isCorrect
-                                      ? 'border-green-500 bg-green-500/10'
+                                      ? 'border-emerald-500/25 bg-emerald-500/5'
                                       : wasSelected
-                                        ? 'border-red-500 bg-red-500/10'
-                                        : 'border-gray-700')
+                                        ? 'border-rose-500/25 bg-rose-500/5'
+                                        : 'border-gray-700/40 bg-gray-800/20 opacity-60')
                                   : responses[`${phase.phaseNumber}_0`] === option.id
-                                    ? 'border-blue-500 bg-blue-500/10 cursor-pointer'
-                                    : 'border-gray-700 hover:border-blue-500/50 hover:bg-blue-500/5 cursor-pointer'
-                              } ${isDisabled && !hasAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    ? 'border-blue-500/40 bg-blue-500/5 cursor-pointer'
+                                    : 'border-gray-700/60 bg-gray-800/20 hover:border-gray-600 hover:bg-gray-800/40 cursor-pointer'
+                              } ${isDisabled && !hasAnswered ? 'opacity-40 cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center flex-1">
                                   <input
                                     type="radio"
@@ -754,11 +764,11 @@ const ParticipantDashboard = () => {
                                     value={option.id}
                                     checked={responses[`${phase.phaseNumber}_0`] === option.id}
                                     onChange={(e) => handleAnswerSelect(phase.phaseNumber, 0, e.target.value)}
-                                    className="w-4 h-4 text-blue-600 mr-3 flex-shrink-0"
+                                    className="w-4 h-4 accent-blue-500 mr-3 flex-shrink-0"
                                     disabled={isDisabled}
                                   />
                                   <div className="flex-1">
-                                    <div className="text-white font-medium">{option.text}</div>
+                                    <div className={`font-medium text-sm ${hasAnswered && !isCorrect && !wasSelected ? 'text-gray-500' : 'text-gray-200'}`}>{option.text}</div>
                                   </div>
                                 </div>
                                 {hasAnswered && option.magnitude && (
@@ -783,19 +793,19 @@ const ParticipantDashboard = () => {
                             const isDisabled = !currentInject?.responsesOpen || hasAnswered || phaseProgressionLocked;
 
                             return (
-                              <label key={optIndex} className={`flex items-center justify-between p-3 bg-black/30 border rounded-lg transition-all duration-200 ${
+                              <label key={optIndex} className={`flex items-center justify-between p-3.5 border rounded-lg transition-all duration-200 ${
                                 hasAnswered
                                   ? (isCorrect && wasSelected
-                                      ? 'border-green-500 bg-green-500/10'
+                                      ? 'border-emerald-500/25 bg-emerald-500/5'
                                       : isCorrect && !wasSelected
-                                        ? 'border-yellow-500 bg-yellow-500/10'
+                                        ? 'border-amber-500/25 bg-amber-500/5'
                                         : wasSelected && !isCorrect
-                                          ? 'border-red-500 bg-red-500/10'
-                                          : 'border-gray-700')
+                                          ? 'border-rose-500/25 bg-rose-500/5'
+                                          : 'border-gray-700/40 bg-gray-800/20 opacity-60')
                                   : (responses[`${phase.phaseNumber}_0`] || []).includes(option.id)
-                                    ? 'border-blue-500 bg-blue-500/10 cursor-pointer'
-                                    : 'border-gray-700 hover:border-blue-500/50 hover:bg-blue-500/5 cursor-pointer'
-                              } ${isDisabled && !hasAnswered ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    ? 'border-blue-500/40 bg-blue-500/5 cursor-pointer'
+                                    : 'border-gray-700/60 bg-gray-800/20 hover:border-gray-600 hover:bg-gray-800/40 cursor-pointer'
+                              } ${isDisabled && !hasAnswered ? 'opacity-40 cursor-not-allowed' : ''}`}>
                                 <div className="flex items-center flex-1">
                                   <input
                                     type="checkbox"
@@ -810,11 +820,11 @@ const ParticipantDashboard = () => {
                                       }
                                       handleAnswerSelect(phase.phaseNumber, 0, newAnswers);
                                     }}
-                                    className="w-4 h-4 text-blue-600 mr-3 flex-shrink-0 rounded"
+                                    className="w-4 h-4 accent-blue-500 mr-3 flex-shrink-0 rounded"
                                     disabled={isDisabled}
                                   />
                                   <div className="flex-1">
-                                    <div className="text-white font-medium">{option.text}</div>
+                                    <div className={`font-medium text-sm ${hasAnswered && !isCorrect && !wasSelected ? 'text-gray-500' : 'text-gray-200'}`}>{option.text}</div>
                                   </div>
                                 </div>
                                 {hasAnswered && option.magnitude && (
@@ -830,8 +840,8 @@ const ParticipantDashboard = () => {
                             <textarea
                               value={responses[`${phase.phaseNumber}_0`] || ''}
                               onChange={(e) => handleAnswerSelect(phase.phaseNumber, 0, e.target.value)}
-                              className={`w-full p-4 bg-black/30 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
-                                (!currentInject?.responsesOpen || phaseProgressionLocked) ? 'opacity-50 cursor-not-allowed' : ''
+                              className={`w-full p-4 bg-gray-800/20 border border-gray-700/60 rounded-lg text-gray-200 placeholder-gray-600 focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all text-sm ${
+                                (!currentInject?.responsesOpen || phaseProgressionLocked) ? 'opacity-40 cursor-not-allowed' : ''
                               }`}
                               rows="5"
                               placeholder="Type your answer here..."
@@ -853,17 +863,16 @@ const ParticipantDashboard = () => {
                             // Show Next Phase button if already answered
                             return (
                               <div className="space-y-3">
-                                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                                  <div className="flex items-center justify-center gap-3 mb-2">
-                                    <FaCheckCircle className="text-green-400 text-lg" />
-                                    <span className="text-green-300 font-medium">Answer Submitted</span>
+                                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                                  <div className="flex items-center justify-center gap-2 mb-2">
+                                    <span className="text-gray-300 font-medium text-sm">Answer Submitted</span>
                                   </div>
                                   {responseData && (
-                                    <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-green-500/30">
+                                    <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-700">
                                       {responseData.magnitude && (
                                         <EffectivenessBadge magnitude={responseData.magnitude} showDescription={true} />
                                       )}
-                                      <div className="text-white font-bold">
+                                      <div className="text-white font-bold text-sm">
                                         {responseData.pointsEarned} points
                                       </div>
                                     </div>
@@ -872,13 +881,10 @@ const ParticipantDashboard = () => {
 
                                 {/* Phase Progression Lock Message */}
                                 {phaseProgressionLocked && currentPhaseNumber < phases.length && (
-                                  <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 text-center">
-                                    <FaLock className="inline mr-2 text-orange-400 text-lg" />
-                                    <div className="text-orange-300 font-semibold mb-1">Discussion Period</div>
-                                    <div className="text-orange-200 text-sm">
-                                      The facilitator has locked phase progression for team discussion.
-                                      <br />
-                                      Please wait for the unlock to proceed to the next phase.
+                                  <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+                                    <div className="text-gray-300 font-medium text-sm mb-1">Discussion Period</div>
+                                    <div className="text-gray-500 text-xs">
+                                      Phase progression locked for team discussion. Please wait for unlock.
                                     </div>
                                   </div>
                                 )}
@@ -886,27 +892,18 @@ const ParticipantDashboard = () => {
                                 <button
                                   onClick={handleNextPhase}
                                   disabled={currentPhaseNumber >= phases.length || phaseProgressionLocked}
-                                  className={`w-full py-3 px-4 rounded-lg flex items-center justify-center font-bold transition-all duration-300 shadow-lg ${
+                                  className={`w-full py-2.5 px-4 rounded-lg flex items-center justify-center font-medium text-sm transition-all ${
                                     currentPhaseNumber >= phases.length || phaseProgressionLocked
-                                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                      : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transform hover:scale-105'
+                                      ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed'
+                                      : 'bg-blue-600/80 hover:bg-blue-500/80 text-white'
                                   }`}
                                 >
                                   {phaseProgressionLocked ? (
-                                    <>
-                                      <FaLock className="mr-2" />
-                                      Locked - Discussion in Progress
-                                    </>
+                                    'Locked — Discussion in Progress'
                                   ) : currentPhaseNumber >= phases.length ? (
-                                    <>
-                                      <FaFlag className="mr-2" />
-                                      All Phases Complete
-                                    </>
+                                    'All Phases Complete'
                                   ) : (
-                                    <>
-                                      <FaFlag className="mr-2" />
-                                      Go to Next Phase
-                                    </>
+                                    'Next Phase'
                                   )}
                                 </button>
                               </div>
@@ -916,22 +913,18 @@ const ParticipantDashboard = () => {
                             return (
                               <button
                                 onClick={() => submitResponse(phase.phaseNumber, 0)}
-                                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-lg hover:from-green-600 hover:to-emerald-700 flex items-center justify-center font-bold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                                className="w-full bg-blue-600/80 hover:bg-blue-500/80 text-white py-2.5 px-4 rounded-lg flex items-center justify-center font-medium text-sm transition-all"
                               >
-                                <FaCheckCircle className="mr-2" />
                                 Submit Answer
                               </button>
                             );
                           } else if (phaseProgressionLocked && !hasAnswered) {
                             // Show locked message when phase is locked but not answered
                             return (
-                              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 text-center">
-                                <FaLock className="inline mr-2 text-orange-400 text-lg" />
-                                <div className="text-orange-300 font-semibold mb-1">Discussion Period</div>
-                                <div className="text-orange-200 text-sm">
-                                  The facilitator has locked submissions for team discussion.
-                                  <br />
-                                  Please wait for the unlock to submit your answer.
+                              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+                                <div className="text-gray-300 font-medium text-sm mb-1">Discussion Period</div>
+                                <div className="text-gray-500 text-xs">
+                                  Submissions locked for team discussion. Please wait for unlock.
                                 </div>
                               </div>
                             );
@@ -940,9 +933,8 @@ const ParticipantDashboard = () => {
                         })()}
 
                         {!currentInject?.responsesOpen && !phaseProgressionLocked && (
-                          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
-                            <FaLock className="inline mr-2 text-yellow-400" />
-                            <span className="text-yellow-300 font-medium">Responses Closed</span>
+                          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+                            <span className="text-gray-400 font-medium text-sm">Responses Closed</span>
                           </div>
                         )}
                       </div>
@@ -950,12 +942,12 @@ const ParticipantDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-lg p-8 text-center">
-                  <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FaQuestionCircle className="text-3xl text-gray-500" />
+                <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-8 text-center">
+                  <div className="w-12 h-12 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FaQuestionCircle className="text-lg text-gray-500" />
                   </div>
-                  <p className="text-white font-bold mb-1">No Tasks Available</p>
-                  <p className="text-gray-400 text-sm">Tasks will appear here when the facilitator adds them.</p>
+                  <p className="text-white font-medium text-sm mb-1">No Tasks Available</p>
+                  <p className="text-gray-500 text-xs">Tasks will appear here when the facilitator adds them.</p>
                 </div>
               )}
               </div>

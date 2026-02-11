@@ -10,12 +10,12 @@ const Layout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/facilitator/login');
   };
 
   // Check if current route is a participant route (exercise view)
   const isParticipantRoute = location.pathname.startsWith('/exercise/') && !location.pathname.includes('/build') && !location.pathname.includes('/control');
-  const isJoinPage = location.pathname === '/';
+  const isJoinPage = location.pathname === '/' || location.pathname === '/participant/join';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -24,7 +24,7 @@ const Layout = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Link to="/" className="flex items-center space-x-2">
-                <FaHome className="text-blue-400 text-xl" />
+                <FaHome className="text-blue-400/80 text-xl" />
                 <span className="text-xl font-bold text-white">
                   Tabletop Exercise
                 </span>
@@ -41,14 +41,14 @@ const Layout = () => {
                   {user.role === 'facilitator' && (
                     <Link
                       to="/dashboard"
-                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                      className="bg-blue-600/80 text-white px-4 py-2 rounded hover:bg-blue-500/80 transition-colors"
                     >
                       Dashboard
                     </Link>
                   )}
                   <button
                     onClick={handleLogout}
-                    className="flex items-center text-red-400 hover:text-red-300 transition-colors"
+                    className="flex items-center text-gray-400 hover:text-gray-300 transition-colors"
                   >
                     <FaSignOutAlt className="mr-2" />
                     Logout
@@ -60,15 +60,15 @@ const Layout = () => {
                   {!isParticipantRoute && !isJoinPage && (
                     <>
                       <Link
-                        to="/login"
-                        className="flex items-center text-gray-300 hover:text-blue-400 transition-colors"
+                        to="/facilitator/login"
+                        className="flex items-center text-gray-300 hover:text-white transition-colors"
                       >
                         <FaSignInAlt className="mr-2" />
                         Login
                       </Link>
                       <Link
-                        to="/register"
-                        className="flex items-center bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                        to="/facilitator/register"
+                        className="flex items-center bg-blue-600/80 text-white px-4 py-2 rounded hover:bg-blue-500/80 transition-colors"
                       >
                         <FaUserPlus className="mr-2" />
                         Register

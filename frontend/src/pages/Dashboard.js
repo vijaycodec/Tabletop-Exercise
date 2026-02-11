@@ -150,8 +150,24 @@ const Dashboard = () => {
     }
   };
 
-  // CKEditor configuration - Classic build includes these features
+  // Base64 upload adapter - converts images to inline base64
+  function Base64UploadAdapterPlugin(editor) {
+    editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+      return {
+        upload: () => loader.file.then(file => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ default: reader.result });
+          reader.onerror = () => reject('Failed to read file');
+          reader.readAsDataURL(file);
+        })),
+        abort: () => {}
+      };
+    };
+  }
+
+  // CKEditor configuration
   const editorConfig = {
+    extraPlugins: [Base64UploadAdapterPlugin],
     toolbar: [
       'heading',
       '|',
@@ -165,6 +181,7 @@ const Dashboard = () => {
       'outdent',
       'indent',
       '|',
+      'imageUpload',
       'insertTable',
       '|',
       'blockQuote',
@@ -172,14 +189,15 @@ const Dashboard = () => {
       'undo',
       'redo'
     ],
+    image: {
+      toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
+    },
     table: {
       contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
     },
     link: {
       addTargetToExternalLinks: true
     },
-    // Better paste handling - preserves formatting from Word/Google Docs
-    // Note: PDF copy always produces plain text (OS limitation)
     htmlSupport: {
       allow: [
         { name: /.*/, attributes: true, classes: true, styles: true }
@@ -197,7 +215,7 @@ const Dashboard = () => {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center transition-all shadow-lg"
+          className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-4 py-2 rounded-lg flex items-center transition-all"
         >
           <FaPlus className="mr-2" />
           Create Exercise
@@ -208,17 +226,17 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-xl p-6 border border-gray-700">
           <h3 className="text-lg font-bold mb-2 text-gray-300">Total Exercises</h3>
-          <p className="text-3xl font-bold text-blue-400">{exercises.length}</p>
+          <p className="text-3xl font-bold text-white">{exercises.length}</p>
         </div>
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-xl p-6 border border-gray-700">
           <h3 className="text-lg font-bold mb-2 text-gray-300">Active</h3>
-          <p className="text-3xl font-bold text-green-400">
+          <p className="text-3xl font-bold text-white">
             {exercises.filter(e => e.status === 'active').length}
           </p>
         </div>
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-xl p-6 border border-gray-700">
           <h3 className="text-lg font-bold mb-2 text-gray-300">Draft</h3>
-          <p className="text-3xl font-bold text-yellow-400">
+          <p className="text-3xl font-bold text-white">
             {exercises.filter(e => e.status === 'draft').length}
           </p>
         </div>
@@ -246,9 +264,9 @@ const Dashboard = () => {
                     <div className="flex items-center space-x-4 text-sm">
                       <span className={`px-2 py-1 rounded ${
                         exercise.status === 'active'
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          ? 'bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20'
                           : exercise.status === 'draft'
-                          ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                          ? 'bg-amber-500/10 text-amber-400/80 border border-amber-500/20'
                           : 'bg-gray-700 text-gray-300'
                       }`}>
                         {exercise.status}
@@ -256,12 +274,12 @@ const Dashboard = () => {
                       <span className="text-gray-400">Created: {format(new Date(exercise.createdAt), 'MMM d, yyyy')}</span>
                       <span className="flex items-center text-gray-400">
                         Access Code:
-                        <code className="bg-gray-700 px-2 py-1 rounded ml-2 font-mono text-blue-400 border border-gray-600">
+                        <code className="bg-gray-700 px-2 py-1 rounded ml-2 font-mono text-white border border-gray-600">
                           {exercise.accessCode}
                         </code>
                         <button
                           onClick={() => copyAccessCode(exercise.accessCode)}
-                          className="ml-1 text-blue-400 hover:text-blue-300 transition-colors"
+                          className="ml-1 text-gray-400 hover:text-gray-300 transition-colors"
                         >
                           <FaCopy />
                         </button>
@@ -271,7 +289,7 @@ const Dashboard = () => {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleOpenSummary(exercise)}
-                      className="flex items-center bg-purple-500/20 text-purple-400 px-3 py-2 rounded hover:bg-purple-500/30 border border-purple-500/30 transition-colors"
+                      className="flex items-center bg-gray-700/50 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600 transition-colors"
                       title="Exercise Summary"
                     >
                       <FaFileAlt className="mr-1" />
@@ -280,7 +298,7 @@ const Dashboard = () => {
                     {exercise.status === 'draft' && (
                       <button
                         onClick={() => handleActivateExercise(exercise._id)}
-                        className="flex items-center bg-cyan-500/20 text-cyan-400 px-3 py-2 rounded hover:bg-cyan-500/30 border border-cyan-500/30 transition-colors"
+                        className="flex items-center bg-gray-700/50 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600 transition-colors"
                         title="Activate Exercise"
                       >
                         <FaCheck className="mr-1" />
@@ -289,7 +307,7 @@ const Dashboard = () => {
                     )}
                     <Link
                       to={`/exercise/${exercise._id}/build`}
-                      className="flex items-center bg-blue-500/20 text-blue-400 px-3 py-2 rounded hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
+                      className="flex items-center bg-gray-700/50 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600 transition-colors"
                       title="Edit Exercise"
                     >
                       <FaEdit className="mr-1" />
@@ -297,7 +315,7 @@ const Dashboard = () => {
                     </Link>
                     <Link
                       to={`/exercise/${exercise._id}/control`}
-                      className="flex items-center bg-green-500/20 text-green-400 px-3 py-2 rounded hover:bg-green-500/30 border border-green-500/30 transition-colors"
+                      className="flex items-center bg-gray-700/50 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600 transition-colors"
                       title="Control Exercise"
                     >
                       <FaPlay className="mr-1" />
@@ -305,7 +323,7 @@ const Dashboard = () => {
                     </Link>
                     <button
                       onClick={() => handleDeleteClick(exercise)}
-                      className="flex items-center bg-red-500/20 text-red-400 px-3 py-2 rounded hover:bg-red-500/30 border border-red-500/30 transition-colors"
+                      className="flex items-center bg-red-500/10 text-red-400/80 px-3 py-2 rounded hover:bg-red-500/20 border border-red-500/20 transition-colors"
                       title="Delete Exercise"
                     >
                       <FaTrash />
@@ -323,8 +341,8 @@ const Dashboard = () => {
         <div className="fixed top-4 right-4 z-50 animate-fade-in-down">
           <div className={`rounded-lg shadow-2xl p-4 border ${
             notification.type === 'success'
-              ? 'bg-green-500/20 text-green-400 border-green-500/30'
-              : 'bg-red-500/20 text-red-400 border-red-500/30'
+              ? 'bg-gray-800 text-gray-200 border-gray-600'
+              : 'bg-gray-800 text-gray-200 border-gray-600'
           }`}>
             <p className="font-medium">{notification.message}</p>
           </div>
@@ -347,7 +365,7 @@ const Dashboard = () => {
                     type="text"
                     value={newExercise.title}
                     onChange={(e) => setNewExercise({ ...newExercise, title: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                     placeholder="e.g., Cyber Attack Simulation"
                   />
                 </div>
@@ -359,7 +377,7 @@ const Dashboard = () => {
                   <textarea
                     value={newExercise.description}
                     onChange={(e) => setNewExercise({ ...newExercise, description: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                     rows="3"
                     placeholder="Brief description of the exercise..."
                   />
@@ -373,7 +391,7 @@ const Dashboard = () => {
                     type="number"
                     value={newExercise.maxParticipants}
                     onChange={(e) => setNewExercise({ ...newExercise, maxParticipants: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                     min="1"
                     max="100"
                   />
@@ -389,7 +407,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={handleCreateExercise}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
+                  className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-4 py-2 rounded transition-all font-medium"
                 >
                   Create Exercise
                 </button>
@@ -402,11 +420,11 @@ const Dashboard = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl w-full max-w-md border border-red-700">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl w-full max-w-md border border-gray-700">
             <div className="p-6">
               <div className="flex items-center mb-4">
-                <div className="bg-red-500/20 p-3 rounded-full mr-4">
-                  <FaTrash className="text-2xl text-red-400" />
+                <div className="bg-red-500/10 p-3 rounded-full mr-4">
+                  <FaTrash className="text-2xl text-red-400/80" />
                 </div>
                 <h3 className="text-xl font-bold text-white">Delete Exercise</h3>
               </div>
@@ -420,7 +438,7 @@ const Dashboard = () => {
                   <p className="text-sm text-gray-400">{exerciseToDelete.description}</p>
                 </div>
               )}
-              <p className="text-sm text-red-400 mb-4">
+              <p className="text-sm text-gray-400 mb-4">
                 This action cannot be undone. All exercise data, injects, and participant responses will be permanently deleted.
               </p>
 
@@ -433,7 +451,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
-                  className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded hover:from-red-700 hover:to-red-800 transition-all shadow-lg"
+                  className="bg-red-600/80 hover:bg-red-500/80 text-white px-4 py-2 rounded transition-all font-medium"
                 >
                   Delete Exercise
                 </button>
@@ -455,7 +473,7 @@ const Dashboard = () => {
                 </div>
                 <button
                   onClick={handleAddSummaryPhase}
-                  className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-purple-800 flex items-center transition-all shadow-lg"
+                  className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-4 py-2 rounded-lg flex items-center transition-all"
                 >
                   <FaPlus className="mr-2" />
                   Add Phase
@@ -473,12 +491,12 @@ const Dashboard = () => {
                   summaryPhases.map((phase, index) => (
                     <div key={index} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                       <div className="flex justify-between items-start mb-4">
-                        <span className="bg-purple-500/20 text-purple-400 px-3 py-1 rounded text-sm font-semibold border border-purple-500/30">
+                        <span className="bg-gray-600 text-gray-300 px-3 py-1 rounded text-sm font-semibold border border-gray-500">
                           Phase {phase.phaseNumber}
                         </span>
                         <button
                           onClick={() => handleDeleteSummaryPhase(index)}
-                          className="text-red-400 hover:text-red-300 transition-colors"
+                          className="text-gray-400 hover:text-gray-300 transition-colors"
                         >
                           <FaTrash />
                         </button>
@@ -492,7 +510,7 @@ const Dashboard = () => {
                           type="text"
                           value={phase.title}
                           onChange={(e) => handleUpdateSummaryPhase(index, 'title', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
                           placeholder="e.g., LONG-TERM RECONNAISSANCE (Pre-attack months)"
                         />
                       </div>
@@ -527,7 +545,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={handleSaveSummary}
-                  className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-2 rounded hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg"
+                  className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-6 py-2 rounded transition-all font-medium"
                 >
                   Save Summary
                 </button>

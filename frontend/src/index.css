@@ -330,6 +330,23 @@ pre::-webkit-scrollbar-thumb {
   display: inline-block;
 }
 
+.summary-content figure.image-style-side {
+  float: right;
+  margin-left: 1.5rem;
+  max-width: 50%;
+}
+
+.summary-content figure.image-style-align-left {
+  float: left;
+  margin-right: 1.5rem;
+  max-width: 50%;
+}
+
+.summary-content figure.image-style-align-center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .summary-content figcaption {
   font-size: 0.875rem;
   color: #9ca3af;
@@ -383,6 +400,51 @@ pre::-webkit-scrollbar-thumb {
   border: none;
   border-top: 1px solid #4b5563;
   margin: 1.5rem 0;
+}
+
+/* Inject card entrance animation */
+@keyframes injectCardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inject-card-animate {
+  animation: injectCardSlideIn 0.5s ease-out both;
+}
+
+/* Artifact staggered entrance */
+@keyframes artifactFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.artifact-animate {
+  animation: artifactFadeIn 0.4s ease-out both;
+}
+
+/* Typing cursor blink */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typing-cursor {
+  animation: cursorBlink 0.7s step-end infinite;
+  color: #60a5fa;
+  font-weight: 300;
+  margin-left: 1px;
 }
 
 /* Participant Dashboard - 18px paragraph text */
