@@ -299,7 +299,18 @@ const ControlPanel = () => {
 
   const copyAccessCode = () => {
     if (currentExercise?.accessCode) {
-      navigator.clipboard.writeText(currentExercise.accessCode);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentExercise.accessCode);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = currentExercise.accessCode;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       toast.success('Access code copied to clipboard!');
     }
   };
@@ -995,9 +1006,10 @@ const ControlPanel = () => {
                         </span>
                       </div>
                       <div className="mt-4 pt-4 border-t border-gray-700">
-                        <p className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
-                          {inject.narrative}
-                        </p>
+                        <div
+                          className="text-gray-300 text-base leading-relaxed summary-content"
+                          dangerouslySetInnerHTML={{ __html: inject.narrative?.replace(/&nbsp;/g, ' ') }}
+                        />
                       </div>
                     </div>
 
@@ -1262,7 +1274,7 @@ const ControlPanel = () => {
                   <p className="text-sm mt-1 text-gray-600">Go to Dashboard to add presentation phases.</p>
                 </div>
               ) : (
-                <div className="flex bg-gray-800/60 border border-gray-700 rounded-lg overflow-hidden" style={{ minHeight: '500px' }}>
+                <div className="flex bg-gray-800/60 border border-gray-700 rounded-lg overflow-hidden min-w-0" style={{ minHeight: '500px' }}>
                   {/* Phase Navigation Sidebar */}
                   <div className="w-60 border-r border-gray-700 overflow-y-auto">
                     <div className="p-3">
@@ -1295,7 +1307,7 @@ const ControlPanel = () => {
                   </div>
 
                   {/* Phase Content */}
-                  <div className="flex-1 overflow-y-auto">
+                  <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
                     {summaryData[selectedSummaryPhase] && (
                       <div className="p-8">
                         <div className="flex items-center gap-3 mb-5">

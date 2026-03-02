@@ -13,6 +13,9 @@ const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editExercise, setEditExercise] = useState(null);
+  const [editForm, setEditForm] = useState({ title: '', description: '', maxParticipants: 50 });
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summaryExercise, setSummaryExercise] = useState(null);
@@ -52,7 +55,19 @@ const Dashboard = () => {
   };
 
   const copyAccessCode = (code) => {
-    navigator.clipboard.writeText(code);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code);
+    } else {
+      // Fallback for non-secure contexts (HTTP on LAN)
+      const textarea = document.createElement('textarea');
+      textarea.value = code;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
     showNotification('Access code copied to clipboard!', 'success');
   };
 
@@ -88,6 +103,33 @@ const Dashboard = () => {
   const handleDeleteCancel = () => {
     setShowDeleteModal(false);
     setExerciseToDelete(null);
+  };
+
+  const handleEditClick = (exercise) => {
+    setEditExercise(exercise);
+    setEditForm({
+      title: exercise.title,
+      description: exercise.description,
+      maxParticipants: exercise.maxParticipants || 50
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editExercise || !editForm.title.trim() || !editForm.description.trim()) return;
+
+    try {
+      await exerciseAPI.updateExercise(editExercise._id, editForm);
+      setExercises(exercises.map(ex =>
+        ex._id === editExercise._id ? { ...ex, ...editForm } : ex
+      ));
+      setShowEditModal(false);
+      setEditExercise(null);
+      showNotification('Exercise updated successfully!', 'success');
+    } catch (error) {
+      console.error('Failed to update exercise:', error);
+      showNotification('Failed to update exercise. Please try again.', 'error');
+    }
   };
 
   const handleActivateExercise = async (exerciseId) => {
@@ -305,13 +347,21 @@ const Dashboard = () => {
                         Activate
                       </button>
                     )}
-                    <Link
-                      to={`/exercise/${exercise._id}/build`}
+                    <button
+                      onClick={() => handleEditClick(exercise)}
                       className="flex items-center bg-gray-700/50 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600 transition-colors"
-                      title="Edit Exercise"
+                      title="Edit Exercise Details"
                     >
                       <FaEdit className="mr-1" />
                       Edit
+                    </button>
+                    <Link
+                      to={`/exercise/${exercise._id}/build`}
+                      className="flex items-center bg-gray-700/50 text-gray-300 px-3 py-2 rounded hover:bg-gray-700 border border-gray-600 transition-colors"
+                      title="Build Injects"
+                    >
+                      <FaPlus className="mr-1" />
+                      Build
                     </Link>
                     <Link
                       to={`/exercise/${exercise._id}/control`}
@@ -454,6 +504,74 @@ const Dashboard = () => {
                   className="bg-red-600/80 hover:bg-red-500/80 text-white px-4 py-2 rounded transition-all font-medium"
                 >
                   Delete Exercise
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Exercise Modal */}
+      {showEditModal && editExercise && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-2xl w-full max-w-md border border-gray-700">
+            <div className="p-6">
+              <h3 className="text-xl font-bold mb-4 text-white">Edit Exercise</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Exercise Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
+                    placeholder="e.g., Cyber Attack Simulation"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Description *
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
+                    rows="3"
+                    placeholder="Brief description of the exercise..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Max Participants
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.maxParticipants}
+                    onChange={(e) => setEditForm({ ...editForm, maxParticipants: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/30"
+                    min="1"
+                    max="100"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => { setShowEditModal(false); setEditExercise(null); }}
+                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-4 py-2 rounded transition-all font-medium"
+                >
+                  Save Changes
                 </button>
               </div>
             </div>

@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useExercise } from '../../contexts/ExerciseContext';
 import { exerciseAPI } from '../../services/api';
 import { FaPlus, FaSave, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaTimes } from 'react-icons/fa';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const ExerciseBuilder = () => {
   const { exerciseId } = useParams();
@@ -17,6 +19,46 @@ const ExerciseBuilder = () => {
   const [editingInjectNumber, setEditingInjectNumber] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInjectNumber, setDeleteInjectNumber] = useState(null);
+
+  // Base64 upload adapter for CKEditor images
+  function Base64UploadAdapterPlugin(editor) {
+    editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+      return {
+        upload: () => loader.file.then(file => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ default: reader.result });
+          reader.onerror = () => reject('Failed to read file');
+          reader.readAsDataURL(file);
+        })),
+        abort: () => {}
+      };
+    };
+  }
+
+  const editorConfig = {
+    extraPlugins: [Base64UploadAdapterPlugin],
+    toolbar: [
+      'heading', '|',
+      'bold', 'italic', 'link', '|',
+      'bulletedList', 'numberedList', '|',
+      'outdent', 'indent', '|',
+      'imageUpload', 'insertTable', '|',
+      'blockQuote', '|',
+      'undo', 'redo'
+    ],
+    image: {
+      toolbar: ['imageTextAlternative', 'imageStyle:inline', 'imageStyle:block', 'imageStyle:side']
+    },
+    table: {
+      contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+    },
+    link: {
+      addTargetToExternalLinks: true
+    },
+    htmlSupport: {
+      allow: [{ name: /.*/, attributes: true, classes: true, styles: true }]
+    }
+  };
 
   // Load exercise data when component mounts or exerciseId changes
   useEffect(() => {
@@ -368,13 +410,17 @@ const ExerciseBuilder = () => {
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Narrative *
               </label>
-              <textarea
-                value={injectData.narrative}
-                onChange={(e) => setInjectData({ ...injectData, narrative: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows="8"
-                placeholder="Enter the inject narrative scenario..."
-              />
+              <div className="bg-white rounded-md ckeditor-container">
+                <CKEditor
+                  editor={ClassicEditor}
+                  config={editorConfig}
+                  data={injectData.narrative || ''}
+                  onChange={(event, editor) => {
+                    const data = editor.getData();
+                    setInjectData(prev => ({ ...prev, narrative: data }));
+                  }}
+                />
+              </div>
             </div>
 
             {/* Artifacts Section */}

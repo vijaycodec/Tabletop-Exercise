@@ -10,31 +10,71 @@ import {
 } from 'react-icons/fa';
 import { EffectivenessBadge } from '../../utils/effectivenessBadge';
 
+// Strip HTML tags to get plain text for typewriter character counting
+const stripHtml = (html) => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
+// Slice HTML content by visible character count while preserving tags
+const sliceHtml = (html, charCount) => {
+  let visible = 0;
+  let inTag = false;
+  let result = '';
+  for (let i = 0; i < html.length; i++) {
+    if (html[i] === '<') inTag = true;
+    if (!inTag) visible++;
+    if (visible > charCount && !inTag) break;
+    result += html[i];
+    if (html[i] === '>') inTag = false;
+  }
+  // Close any open tags
+  const openTags = [];
+  const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g;
+  let match;
+  while ((match = tagRegex.exec(result)) !== null) {
+    if (match[0].startsWith('</')) {
+      openTags.pop();
+    } else if (!match[0].endsWith('/>')) {
+      openTags.push(match[1]);
+    }
+  }
+  for (let j = openTags.length - 1; j >= 0; j--) {
+    result += `</${openTags[j]}>`;
+  }
+  return result;
+};
+
 // Reusable typewriter text component — types out text character by character
-const TypewriterText = ({ text, animate = false, delay = 0, totalDuration = 3500 }) => {
-  const [displayed, setDisplayed] = useState(animate ? '' : (text || ''));
+// Supports both plain text and HTML content (html prop)
+const TypewriterText = ({ text, html, animate = false, delay = 0, totalDuration = 3500 }) => {
+  const isHtml = !!html;
+  const content = html || text || '';
+  const plainText = isHtml ? stripHtml(content) : content;
+  const [charCount, setCharCount] = useState(animate ? 0 : plainText.length);
   const [typing, setTyping] = useState(false);
 
   useEffect(() => {
-    if (!text || !animate) {
-      setDisplayed(text || '');
+    if (!content || !animate) {
+      setCharCount(plainText.length);
       return;
     }
 
     let intervalId;
     const delayTimer = setTimeout(() => {
       setTyping(true);
-      const speed = Math.max(15, Math.min(45, totalDuration / text.length));
+      const speed = Math.max(15, Math.min(45, totalDuration / plainText.length));
       let i = 0;
 
       intervalId = setInterval(() => {
         i += 1;
-        if (i >= text.length) {
-          setDisplayed(text);
+        if (i >= plainText.length) {
+          setCharCount(plainText.length);
           setTyping(false);
           clearInterval(intervalId);
         } else {
-          setDisplayed(text.slice(0, i));
+          setCharCount(i);
         }
       }, speed);
     }, delay);
@@ -45,9 +85,27 @@ const TypewriterText = ({ text, animate = false, delay = 0, totalDuration = 3500
     };
   }, []); // runs on mount only — component is keyed for remount
 
+  if (isHtml) {
+    const raw = charCount >= plainText.length ? content : sliceHtml(content, charCount);
+    // Replace &nbsp; with regular spaces so browser can wrap at those points
+    const displayed = raw.replace(/&nbsp;/g, ' ');
+    return (
+      <>
+        <span dangerouslySetInnerHTML={{ __html: displayed }} />
+        {typing && <span className="typing-cursor">|</span>}
+      </>
+    );
+  }
+
+  const displayed = content.slice(0, charCount);
   return (
     <>
-      {displayed}
+      {displayed.split('\n').map((line, i) => (
+        <span key={i}>
+          {i > 0 && <br />}
+          {line}
+        </span>
+      ))}
       {typing && <span className="typing-cursor">|</span>}
     </>
   );
@@ -515,7 +573,7 @@ const ParticipantDashboard = () => {
       <div className="container mx-auto px-6 py-8">
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Left Panel - Inject Content or Countdown */}
-          <div>
+          <div className="min-w-0">
             {countdownActive && pendingInject ? (
               /* Countdown Display */
               <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-8">
@@ -564,15 +622,15 @@ const ParticipantDashboard = () => {
                 {/* Narrative Section */}
                 <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-5 mb-5 inject-card-animate" style={{ animationDelay: '0.1s' }}>
                   <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Scenario Narrative</h4>
-                  <p className="whitespace-pre-line text-gray-300 leading-relaxed">
+                  <div className="text-gray-300 leading-relaxed summary-content">
                     <TypewriterText
                       key={`narrative-${animationTrigger}`}
-                      text={currentInject.narrative || "Inject narrative will appear here..."}
+                      html={currentInject.narrative || "Inject narrative will appear here..."}
                       animate={animationTrigger > 0}
                       delay={200}
                       totalDuration={8000}
                     />
-                  </p>
+                  </div>
                 </div>
 
                 {/* Artifacts Section */}

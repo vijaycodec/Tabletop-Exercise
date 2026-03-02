@@ -163,6 +163,10 @@ pre::-webkit-scrollbar-thumb {
   min-height: 200px;
   max-height: 400px;
   overflow-y: auto;
+  line-height: 1.75;
+  font-size: 1rem;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .ckeditor-container .ck.ck-editor__main > .ck-editor__editable {
@@ -175,11 +179,118 @@ pre::-webkit-scrollbar-thumb {
   border-color: #d1d5db;
 }
 
+/* Match editor typography to view summary display — !important overrides Tailwind preflight reset */
+.ckeditor-container .ck-editor__editable p {
+  margin-top: 0 !important;
+  margin-bottom: 1rem !important;
+}
+
+.ckeditor-container .ck-editor__editable h1 {
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.ckeditor-container .ck-editor__editable h2 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.ckeditor-container .ck-editor__editable h3 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-top: 1rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.ckeditor-container .ck-editor__editable h4 {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.ckeditor-container .ck-editor__editable ul {
+  list-style-type: disc !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-left: 0 !important;
+}
+
+.ckeditor-container .ck-editor__editable ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  padding-left: 0 !important;
+}
+
+.ckeditor-container .ck-editor__editable li {
+  margin-bottom: 0.5rem !important;
+  display: list-item !important;
+}
+
+.ckeditor-container .ck-editor__editable li > ul,
+.ckeditor-container .ck-editor__editable li > ol {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+}
+
+.ckeditor-container .ck-editor__editable blockquote {
+  border-left: 4px solid #8b5cf6 !important;
+  padding: 1rem !important;
+  margin: 1rem 0 !important;
+  font-style: italic !important;
+  background-color: rgba(139, 92, 246, 0.05) !important;
+  border-radius: 0 0.5rem 0.5rem 0 !important;
+}
+
+.ckeditor-container .ck-editor__editable table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.ckeditor-container .ck-editor__editable table th,
+.ckeditor-container .ck-editor__editable table td {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.ckeditor-container .ck-editor__editable table th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+}
+
+.ckeditor-container .ck-editor__editable pre {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid #e5e7eb;
+}
+
+.ckeditor-container .ck-editor__editable hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.5rem 0;
+}
+
 /* Summary Content View Styles - matches CKEditor output */
 .summary-content {
   color: #e5e7eb;
   line-height: 1.75;
   font-size: 1rem;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .summary-content h1 {
@@ -281,6 +392,7 @@ pre::-webkit-scrollbar-thumb {
 
 .summary-content table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 1rem 0;
   background-color: rgba(31, 41, 55, 0.5);
@@ -295,11 +407,15 @@ pre::-webkit-scrollbar-thumb {
   padding: 0.75rem 1rem;
   text-align: left;
   border: 1px solid #4b5563;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .summary-content table td {
   padding: 0.75rem 1rem;
   border: 1px solid #4b5563;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .summary-content table tr:nth-child(even) {
@@ -447,14 +563,18 @@ pre::-webkit-scrollbar-thumb {
   margin-left: 1px;
 }
 
-/* Participant Dashboard - 18px paragraph text */
+/* Participant Dashboard - 18px text */
 .participant-dashboard p,
 .participant-dashboard span,
 .participant-dashboard label,
 .participant-dashboard li,
 .participant-dashboard div.text-white,
 .participant-dashboard div.text-gray-300,
-.participant-dashboard div.text-gray-400 {
+.participant-dashboard div.text-gray-400,
+.participant-dashboard div.text-gray-200,
+.participant-dashboard div.text-gray-500,
+.participant-dashboard div.font-medium,
+.participant-dashboard textarea {
   font-size: 18px;
 }
 
