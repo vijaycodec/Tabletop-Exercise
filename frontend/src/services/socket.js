@@ -1,10 +1,13 @@
 import io from 'socket.io-client';
 
-// Dynamically build socket URL using current hostname + backend port
-// Works from localhost:3000 AND 192.168.1.26:3000
+// Dynamically build socket URL
+// - Production (HTTPS): connect to same origin so Nginx proxies /socket.io/ to backend
+// - Local dev / LAN (HTTP): connect directly to backend port 5000
 const getSocketUrl = () => {
-  const hostname = window.location.hostname;
-  return `http://${hostname}:5000`;
+  if (window.location.protocol === 'https:') {
+    return window.location.origin; // e.g. https://ttx.cyberpull.space
+  }
+  return `http://${window.location.hostname}:5000`;
 };
 
 class SocketService {
@@ -19,11 +22,13 @@ class SocketService {
     if (!this.socket) {
       const SOCKET_URL = getSocketUrl();
       console.log('Connecting to socket server at', SOCKET_URL);
+      const isProduction = window.location.protocol === 'https:';
       this.socket = io(SOCKET_URL, {
         reconnection: true,
         reconnectionDelay: 2000,
         reconnectionDelayMax: 10000,
-        transports: ['websocket', 'polling']
+        transports: ['polling', 'websocket'],
+        upgrade: true
       });
 
       this.socket.on('connect', () => {

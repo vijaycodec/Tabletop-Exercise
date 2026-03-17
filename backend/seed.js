@@ -7,7 +7,7 @@ dotenv.config();
 // Connect to database
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI);                                                                                                                                                              
     console.log('MongoDB connected for seeding...');
     return mongoose.connection;
   } catch (error) {
@@ -34,7 +34,7 @@ const seedDatabase = async () => {
     // Create user directly in collection (bypass model)
     const user = {
       username: 'Vijay Pratap',
-      email: 'facilitator@codec.com',
+      email: 'facilitator@codec.com',                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
       password: hashedPassword,
       role: 'facilitator',
       createdAt: new Date()

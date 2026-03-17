@@ -1,10 +1,11 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
-// import cors from 'cors'
 
 const http = require('http');
 const socketIo = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
+const { createClient } = require('redis');
 const connectDB = require('./config/db');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -25,11 +26,25 @@ const server = http.createServer(app);
 // Socket.io setup
 const io = socketIo(server, {
   cors: {
-    origin: true, // Allow all origins (or specify array of allowed origins)
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"]
   }
 });
+
+// Redis adapter — shares Socket.io rooms across all PM2 cluster workers
+const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+const subClient = pubClient.duplicate();
+
+Promise.all([pubClient.connect(), subClient.connect()])
+  .then(() => {
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log(' Socket.io Redis adapter connected');
+  })
+  .catch((err) => {
+    console.error('❌ Redis adapter connection failed:', err.message);
+    console.warn('⚠️  Running without Redis adapter — single process mode only');
+  });
 
 // Middleware to attach io to req
 app.use((req, res, next) => {
