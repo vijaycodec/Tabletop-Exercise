@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FaHome, FaUser, FaSignOutAlt, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
+import { FaHome, FaUser, FaSignOutAlt, FaSignInAlt, FaUsers } from 'react-icons/fa';
 
 const Layout = () => {
   const { user, logout } = useAuth();
@@ -46,6 +46,13 @@ const Layout = () => {
                       Dashboard
                     </Link>
                   )}
+                  <Link
+                    to="/users"
+                    className="flex items-center text-gray-300 hover:text-white transition-colors"
+                  >
+                    <FaUsers className="mr-2" />
+                    Users
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="flex items-center text-gray-400 hover:text-gray-300 transition-colors"
@@ -58,22 +65,13 @@ const Layout = () => {
                 <>
                   {/* Hide login/register buttons on participant routes and join page */}
                   {!isParticipantRoute && !isJoinPage && (
-                    <>
-                      <Link
-                        to="/facilitator/login"
-                        className="flex items-center text-gray-300 hover:text-white transition-colors"
-                      >
-                        <FaSignInAlt className="mr-2" />
-                        Login
-                      </Link>
-                      <Link
-                        to="/facilitator/register"
-                        className="flex items-center bg-blue-600/80 text-white px-4 py-2 rounded hover:bg-blue-500/80 transition-colors"
-                      >
-                        <FaUserPlus className="mr-2" />
-                        Register
-                      </Link>
-                    </>
+                    <Link
+                      to="/facilitator/login"
+                      className="flex items-center text-gray-300 hover:text-white transition-colors"
+                    >
+                      <FaSignInAlt className="mr-2" />
+                      Login
+                    </Link>
                   )}
                 </>
               )}
@@ -85,6 +83,7 @@ const Layout = () => {
       <main className="container mx-auto px-4 py-8">
         <Outlet />
       </main>
+
     </div>
   );
 };

@@ -136,6 +136,31 @@ exports.getExerciseData = async (req, res) => {
       return res.status(404).json({ message: 'Participant not found' });
     }
 
+    // If exercise is completed, return only completion data — no inject details
+    if (exercise.status === 'completed') {
+      return res.json({
+        exercise: {
+          id: exercise._id,
+          title: exercise.title,
+          status: exercise.status,
+          completedAt: exercise.completedAt || null
+        },
+        participant: {
+          participantId: participant.participantId,
+          name: participant.name,
+          totalScore: participant.totalScore,
+          status: participant.status,
+          responses: participant.responses || []
+        },
+        currentInject: null,
+        activeInjects: [],
+        phases: [],
+        currentPhaseNumber: 1,
+        responsesOpen: false,
+        phaseProgressionLocked: false
+      });
+    }
+
     // Get current inject - find the active inject or the one participant is on
     let currentInject = exercise.injects.find(
       inject => inject.injectNumber === participant.currentInject && inject.isActive
@@ -167,6 +192,7 @@ exports.getExerciseData = async (req, res) => {
         id: exercise._id,
         title: exercise.title,
         description: exercise.description,
+        status: exercise.status,
         settings: exercise.settings
       },
       participant: {

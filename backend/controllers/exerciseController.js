@@ -17,7 +17,7 @@ exports.createExercise = async (req, res) => {
       description,
       facilitator: req.user.id,
       accessCode,
-      maxParticipants: maxParticipants || 50,
+      maxParticipants: maxParticipants || 100,
       settings: settings || {
         scoringEnabled: true,
         autoRelease: false,
@@ -41,9 +41,9 @@ exports.createExercise = async (req, res) => {
 // @access  Private (Facilitator)
 exports.getMyExercises = async (req, res) => {
   try {
-    const exercises = await Exercise.find({ facilitator: req.user.id })
+    const exercises = await Exercise.find()
       .sort('-createdAt')
-      .select('title description status accessCode createdAt');
+      .select('title description status accessCode createdAt facilitator');
 
     res.json(exercises);
   } catch (error) {
@@ -58,14 +58,9 @@ exports.getMyExercises = async (req, res) => {
 exports.getExercise = async (req, res) => {
   try {
     const exercise = await Exercise.findById(req.params.id);
-    
+
     if (!exercise) {
       return res.status(404).json({ message: 'Exercise not found' });
-    }
-
-    // Check if user is facilitator of this exercise
-    if (exercise.facilitator.toString() !== req.user.id.toString()) {
-      return res.status(403).json({ message: 'Not authorized' });
     }
 
     res.json(exercise);
@@ -427,13 +422,8 @@ exports.getParticipants = async (req, res) => {
       return res.status(404).json({ message: 'Exercise not found' });
     }
 
-    // Check if user is facilitator
-    if (exercise.facilitator.toString() !== req.user.id.toString()) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    const participants = await Participant.find({ 
-      exercise: exercise._id 
+    const participants = await Participant.find({
+      exercise: exercise._id
     }).sort('-joinedAt');
 
     res.json(participants);
@@ -606,6 +596,8 @@ exports.resetExercise = async (req, res) => {
       { _id: new ObjectId(req.params.id) },
       {
         $set: {
+          status: 'active',
+          completedAt: null,
           'injects.$[].isActive': false,
           'injects.$[].releaseTime': null,
           'injects.$[].responsesOpen': false,
@@ -628,6 +620,11 @@ exports.resetExercise = async (req, res) => {
         }
       }
     );
+
+    if (req.io) {
+      req.io.to(`exercise-${req.params.id}`).emit('exerciseReset');
+      console.log(`📡 exerciseReset emitted to exercise-${req.params.id}`);
+    }
 
     res.json({
       success: true,
@@ -735,6 +732,42 @@ exports.updateSummary = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating summary:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    End exercise — marks as completed and notifies all participants
+// @route   POST /api/exercises/:id/end
+// @access  Private (Facilitator)
+exports.endExercise = async (req, res) => {
+  try {
+    const exercise = await Exercise.findById(req.params.id);
+
+    if (!exercise) {
+      return res.status(404).json({ message: 'Exercise not found' });
+    }
+
+    if (exercise.facilitator.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    exercise.status = 'completed';
+    exercise.completedAt = new Date();
+    await exercise.save();
+
+    // Emit socket event to all participants in this exercise room
+    if (req.io) {
+      req.io.to(`exercise-${req.params.id}`).emit('exerciseCompleted', {
+        exerciseId: req.params.id,
+        title: exercise.title,
+        completedAt: exercise.completedAt
+      });
+      console.log(`📡 exerciseCompleted emitted to exercise-${req.params.id}`);
+    }
+
+    res.json({ success: true, message: 'Exercise ended successfully' });
+  } catch (error) {
+    console.error('Error ending exercise:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

@@ -15,7 +15,7 @@ const Dashboard = () => {
   const [exerciseToDelete, setExerciseToDelete] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editExercise, setEditExercise] = useState(null);
-  const [editForm, setEditForm] = useState({ title: '', description: '', maxParticipants: 50 });
+  const [editForm, setEditForm] = useState({ title: '', description: '', maxParticipants: 100 });
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summaryExercise, setSummaryExercise] = useState(null);
@@ -23,7 +23,7 @@ const Dashboard = () => {
   const [newExercise, setNewExercise] = useState({
     title: '',
     description: '',
-    maxParticipants: 50
+    maxParticipants: 100
   });
 
   useEffect(() => {
@@ -47,7 +47,7 @@ const Dashboard = () => {
       setNewExercise({
         title: '',
         description: '',
-        maxParticipants: 50
+        maxParticipants: 100
       });
     } catch (error) {
       console.error('Failed to create exercise:', error);

@@ -131,6 +131,61 @@ exports.login = async (req, res) => {
   }
 };
 
+// @desc    Get all users
+// @route   GET /api/auth/users
+// @access  Private
+exports.getUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password').sort('-createdAt');
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update user
+// @route   PUT /api/auth/users/:id
+// @access  Private
+exports.updateUser = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const updateData = { username, email };
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).select('-password');
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Delete user
+// @route   DELETE /api/auth/users/:id
+// @access  Private
+exports.deleteUser = async (req, res) => {
+  try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ message: 'Cannot delete your own account' });
+    }
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private

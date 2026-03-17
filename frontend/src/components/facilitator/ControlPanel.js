@@ -9,7 +9,7 @@ import {
   FaLockOpen, FaCopy, FaArrowLeft, FaTrash, FaUserCheck, FaClipboardList,
   FaChevronDown, FaChevronRight, FaSearch, FaDesktop, FaFileAlt,
   FaExclamationTriangle, FaNetworkWired, FaServer, FaList, FaSync,
-  FaEye, FaEyeSlash, FaCheck, FaClock
+  FaEye, FaEyeSlash, FaCheck, FaClock, FaDownload
 } from 'react-icons/fa';
 import ParticipantNotification from './ParticipantNotification';
 import { EffectivenessBadge } from '../../utils/effectivenessBadge';
@@ -182,6 +182,41 @@ const ControlPanel = () => {
   const [showResetExerciseModal, setShowResetExerciseModal] = useState(false);
   const [showResetInjectModal, setShowResetInjectModal] = useState(false);
   const [resetInjectNumber, setResetInjectNumber] = useState(null);
+  const [showEndExerciseModal, setShowEndExerciseModal] = useState(false);
+
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const handleDownloadReport = async () => {
+    setReportLoading(true);
+    try {
+      const response = await exerciseAPI.downloadReport(exerciseId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report-${currentExercise?.title?.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'exercise'}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Report downloaded!');
+    } catch (error) {
+      toast.error('Failed to generate report');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleEndExercise = async () => {
+    try {
+      await exerciseAPI.endExercise(exerciseId);
+      toast.success('Exercise ended. Participants have been notified.');
+      setShowEndExerciseModal(false);
+      await getExercise(exerciseId);
+    } catch (error) {
+      console.error('Failed to end exercise:', error);
+      toast.error(error.response?.data?.message || 'Failed to end exercise');
+    }
+  };
 
   const handleResetExercise = async () => {
     try {
@@ -409,9 +444,11 @@ const ControlPanel = () => {
             <h1 className="text-2xl font-bold text-white">{currentExercise?.title}</h1>
             <p className="text-gray-400">{currentExercise?.description}</p>
           </div>
-          <div className="text-right">
+          <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-              currentExercise.status === 'active'
+              currentExercise.status === 'completed'
+                ? 'bg-blue-500/10 text-blue-400/80 border border-blue-500/20'
+                : currentExercise.status === 'active'
                 ? 'bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20'
                 : 'bg-amber-500/10 text-amber-400/80 border border-amber-500/20'
             }`}>
@@ -469,13 +506,30 @@ const ControlPanel = () => {
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-white">Exercise Control Panel</h3>
-                <button
-                  onClick={() => setShowResetExerciseModal(true)}
-                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
-                >
-                  <FaSync className="mr-1" />
-                  Reset Exercise
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDownloadReport}
+                    disabled={reportLoading}
+                    className="bg-green-500/10 hover:bg-green-500/20 text-green-400/80 border border-green-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all disabled:opacity-50"
+                  >
+                    <FaDownload className="mr-1" />
+                    {reportLoading ? 'Generating...' : 'Download Report'}
+                  </button>
+                  <button
+                    onClick={() => setShowEndExerciseModal(true)}
+                    className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400/80 border border-blue-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
+                  >
+                    <FaCheck className="mr-1" />
+                    End Exercise
+                  </button>
+                  <button
+                    onClick={() => setShowResetExerciseModal(true)}
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400/80 border border-red-500/20 px-3 py-1 rounded-lg text-sm flex items-center transition-all"
+                  >
+                    <FaSync className="mr-1" />
+                    Reset Exercise
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1389,6 +1443,40 @@ const ControlPanel = () => {
                 className="flex-1 px-4 py-2 bg-red-600/80 hover:bg-red-500/80 text-white rounded-lg transition-colors font-semibold"
               >
                 Reset Exercise
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Exercise Modal */}
+      {showEndExerciseModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-600 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="bg-blue-500/10 p-3 rounded-full">
+                <FaCheck className="text-blue-400/80 text-xl" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">End Exercise</h3>
+                <p className="text-gray-400 text-sm">This will notify all participants</p>
+              </div>
+            </div>
+            <p className="text-gray-300 text-sm mb-6">
+              Ending the exercise will display a completion screen to all connected participants. The exercise status will be set to <span className="text-blue-400 font-medium">completed</span>.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowEndExerciseModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndExercise}
+                className="flex-1 px-4 py-2 bg-blue-600/80 hover:bg-blue-500/80 text-white rounded-lg transition-colors font-semibold"
+              >
+                End Exercise
               </button>
             </div>
           </div>

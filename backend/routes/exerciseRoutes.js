@@ -16,9 +16,11 @@ const {
   getScores,
   resetExercise,
   resetInject,
+  endExercise,
   updateSummary,
   getSummary
 } = require('../controllers/exerciseController');
+const { generateReport } = require('../controllers/reportController');
 const { protect, facilitatorOnly } = require('../middlewares/auth');
 
 // All routes require authentication and facilitator role
@@ -61,11 +63,17 @@ router.route('/:id/scores')
 router.route('/:id/reset')
   .post(resetExercise);
 
+router.route('/:id/end')
+  .post(endExercise);
+
 router.route('/:id/reset-inject')
   .post(resetInject);
 
 router.route('/:id/summary')
   .get(getSummary)
   .put(updateSummary);
+
+router.route('/:id/report')
+  .get(generateReport);
 
 module.exports = router;

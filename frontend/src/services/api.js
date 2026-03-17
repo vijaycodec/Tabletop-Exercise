@@ -17,7 +17,18 @@ api.interceptors.request.use(
     }
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+// Handle 401 globally — clear session and redirect to login
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/facilitator/login';
+    }
     return Promise.reject(error);
   }
 );
@@ -47,7 +58,9 @@ export const exerciseAPI = {
   resetExercise: (id) => api.post(`/exercises/${id}/reset`),
   resetInject: (exerciseId, data) => api.post(`/exercises/${exerciseId}/reset-inject`, data),
   getSummary: (exerciseId) => api.get(`/exercises/${exerciseId}/summary`),
-  updateSummary: (exerciseId, summary) => api.put(`/exercises/${exerciseId}/summary`, { summary })
+  updateSummary: (exerciseId, summary) => api.put(`/exercises/${exerciseId}/summary`, { summary }),
+  endExercise: (exerciseId) => api.post(`/exercises/${exerciseId}/end`),
+  downloadReport: (exerciseId) => api.get(`/exercises/${exerciseId}/report`, { responseType: 'blob' })
 };
 
 // Participant API calls
@@ -70,6 +83,14 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   getMe: () => api.get('/auth/me')
+};
+
+// User management API
+export const userAPI = {
+  getUsers: () => api.get('/auth/users'),
+  createUser: (data) => api.post('/auth/register', data),
+  updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/auth/users/${id}`)
 };
 
 export default api;

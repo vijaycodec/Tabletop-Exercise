@@ -11,6 +11,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import Users from './pages/Users';
 import JoinExercise from './pages/JoinExercise';
 
 // Facilitator Components
@@ -57,6 +58,12 @@ function App() {
                 </ProtectedRoute>
               } />
               
+              <Route path="users" element={
+                <ProtectedRoute requireFacilitator={true}>
+                  <Users />
+                </ProtectedRoute>
+              } />
+
               <Route path="exercise/:exerciseId/build" element={
                 <ProtectedRoute requireFacilitator={true}>
                   <ExerciseBuilder />

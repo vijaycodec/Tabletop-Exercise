@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FaSignInAlt, FaUser, FaExclamationCircle } from 'react-icons/fa';
 
@@ -95,14 +95,6 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-gray-400">
-            Don't have an account?{' '}
-            <Link to="/facilitator/register" className="text-blue-400/80 hover:text-blue-300/80 transition-colors">
-              Register here
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );

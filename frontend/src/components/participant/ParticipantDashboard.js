@@ -5,7 +5,7 @@ import { participantAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import {
   FaFileAlt, FaLock, FaLockOpen, FaSync,
-  FaClock, FaExclamationTriangle,
+  FaClock, FaExclamationTriangle, FaCheck,
   FaDesktop, FaServer, FaNetworkWired, FaQuestionCircle
 } from 'react-icons/fa';
 import { EffectivenessBadge } from '../../utils/effectivenessBadge';
@@ -128,6 +128,33 @@ const ParticipantDashboard = () => {
   const [pendingInject, setPendingInject] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [animationTrigger, setAnimationTrigger] = useState(0);
+  const [exerciseCompleted, setExerciseCompleted] = useState(false);
+  const [completedAt, setCompletedAt] = useState(null);
+
+  // Security: disable copy, right-click, print, and screenshot shortcuts
+  useEffect(() => {
+    const blockCopy = (e) => e.preventDefault();
+    const blockContext = (e) => e.preventDefault();
+    const blockKeys = (e) => {
+      // Block PrintScreen, Ctrl+C, Ctrl+A, Ctrl+S, Ctrl+P, Ctrl+Shift+I, F12
+      if (
+        e.key === 'PrintScreen' ||
+        (e.ctrlKey && ['c', 'a', 's', 'p', 'u'].includes(e.key.toLowerCase())) ||
+        (e.ctrlKey && e.shiftKey && ['i', 'j', 'c'].includes(e.key.toLowerCase())) ||
+        e.key === 'F12'
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('copy', blockCopy);
+    document.addEventListener('contextmenu', blockContext);
+    document.addEventListener('keydown', blockKeys);
+    return () => {
+      document.removeEventListener('copy', blockCopy);
+      document.removeEventListener('contextmenu', blockContext);
+      document.removeEventListener('keydown', blockKeys);
+    };
+  }, []);
 
   useEffect(() => {
     const participantId = localStorage.getItem('participantId');
@@ -157,6 +184,17 @@ const ParticipantDashboard = () => {
       socketService.on('scoreUpdate', handleScoreUpdate);
       socketService.on('participantAdmitted', handleParticipantAdmitted);
       socketService.on('participantTerminated', handleParticipantTerminated);
+      socketService.on('exerciseCompleted', (data) => {
+        console.log('🏁 Exercise completed:', data);
+        setExerciseCompleted(true);
+        setCompletedAt(data.completedAt);
+      });
+      socketService.on('exerciseReset', () => {
+        console.log('🔄 Exercise reset by facilitator');
+        setExerciseCompleted(false);
+        setCompletedAt(null);
+        fetchExerciseData(participantId);
+      });
       socketService.on('reconnected', () => {
         console.log('🔄 Reconnected — refetching exercise data');
         toast.success('Session restored successfully!', { icon: '🔄' });
@@ -194,6 +232,8 @@ const ParticipantDashboard = () => {
         socketService.off('scoreUpdate');
         socketService.off('participantAdmitted');
         socketService.off('participantTerminated');
+        socketService.off('exerciseCompleted');
+        socketService.off('exerciseReset');
         socketService.off('reconnected');
         socketService.disconnect();
       };
@@ -251,6 +291,14 @@ const ParticipantDashboard = () => {
         ...response.data.participant,
         responses: response.data.participant.responses || []
       });
+
+      if (response.data.exercise?.status === 'completed') {
+        setExerciseCompleted(true);
+        setCompletedAt(response.data.exercise.completedAt || null);
+        setLoading(false);
+        return;
+      }
+
       setCurrentInject(response.data.currentInject);
 
       // Get phases from current inject
@@ -538,8 +586,52 @@ const ParticipantDashboard = () => {
     );
   }
 
+  if (exerciseCompleted) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="max-w-lg w-full mx-4 text-center">
+          <div className="bg-gray-800/60 border border-gray-700 rounded-2xl p-10">
+            <div className="w-20 h-20 bg-blue-500/10 border border-blue-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaCheck className="text-3xl text-blue-400" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Exercise Complete</h1>
+            <p className="text-gray-400 mb-8">{exerciseData?.title}</p>
+
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Participant</div>
+                <div className="text-lg font-bold text-white truncate">{participantData?.name || '—'}</div>
+                {participantData?.team && <div className="text-xs text-gray-500 mt-0.5">{participantData.team}</div>}
+              </div>
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Final Score</div>
+                <div className="text-3xl font-bold text-white">{participantData?.totalScore || 0}</div>
+              </div>
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Responses</div>
+                <div className="text-3xl font-bold text-white">{participantData?.responses?.length || 0}</div>
+              </div>
+            </div>
+
+            <div className="bg-gray-800/40 border border-gray-700 rounded-xl p-4 mb-8">
+              <p className="text-gray-500 text-xs">
+                The facilitator has concluded the exercise. Your responses have been recorded.
+              </p>
+            </div>
+
+            {completedAt && (
+              <p className="text-gray-600 text-xs">
+                Completed at {new Date(completedAt).toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-900 participant-dashboard">
+    <div className="min-h-screen bg-gray-900 participant-dashboard select-none" style={{ WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', userSelect: 'none' }}>
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
@@ -768,7 +860,6 @@ const ParticipantDashboard = () => {
                               {phase.phaseNumber}
                             </span>
                             <div>
-                              <div className="text-xs text-gray-500 uppercase tracking-wider">Task {phase.phaseNumber}</div>
                               <h3 className="text-white font-semibold">{phase.phaseName}</h3>
                             </div>
                           </div>
